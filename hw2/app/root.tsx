@@ -8,9 +8,11 @@ import {
   Scripts,
   ScrollRestoration,
   useRouteLoaderData,
+  useLocation,
 } from "react-router";
 import type { Route } from "./+types/root";
 import { getCurrentUser } from "./lib/auth.server";
+import { ADMIN_BASE_PATH } from "./lib/admin-paths";
 import "./app.css";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -71,15 +73,18 @@ function SiteHeader() {
 }
 
 export default function App() {
+  const pathname = useLocation().pathname;
+  const isAdminPath = pathname === ADMIN_BASE_PATH || pathname.startsWith(`${ADMIN_BASE_PATH}/`);
+
   return (
     <div className="site-layout">
-      <SiteHeader />
+      {isAdminPath ? null : <SiteHeader />}
       <div className="site-content">
         <Outlet />
       </div>
-      <footer className="site-footer">
+      {isAdminPath ? null : <footer className="site-footer">
         <div className="shell">現代軟體工程｜HW2</div>
-      </footer>
+      </footer>}
     </div>
   );
 }

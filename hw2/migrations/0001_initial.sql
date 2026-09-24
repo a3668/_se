@@ -2,6 +2,7 @@ CREATE TABLE users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT NOT NULL COLLATE NOCASE UNIQUE,
   password_hash TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('student', 'teacher')),
   created_at TEXT NOT NULL
 ) STRICT;
 

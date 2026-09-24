@@ -22,7 +22,7 @@ export default function Home() {
           <p className="eyebrow">React Router · SQLite</p>
           <h1>HW2 本機登入示範</h1>
           <p className="hero-description">
-            使用本機 SQLite 保存帳號與 session，示範登入、登出與登入後回首頁的完整流程。
+            學生與老師使用本機 SQLite 帳號登入；管理員使用獨立登入入口。
           </p>
           {user ? (
             <div className="status-card is-signed-in">

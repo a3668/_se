@@ -8,7 +8,7 @@ import {
 
 export function meta() {
   return [
-    { title: "登入｜HW2" },
+    { title: "學生與老師登入｜HW2" },
     { name: "robots", content: "noindex, nofollow" },
   ];
 }
@@ -46,8 +46,8 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
   return (
     <main className="auth-page shell">
       <section className="auth-card">
-        <p className="eyebrow">Member sign in</p>
-        <h1>登入</h1>
+        <p className="eyebrow">Student & Teacher sign in</p>
+        <h1>學生／老師登入</h1>
         <p className="auth-intro">輸入既有帳號，登入成功後會回到首頁。</p>
 
         <Form className="auth-form" method="post">

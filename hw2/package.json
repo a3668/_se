@@ -8,8 +8,8 @@
   "scripts": {
     "build": "react-router build",
     "db:migrate": "node --experimental-strip-types scripts/migrate.ts",
-    "dev": "react-router dev",
-    "start": "react-router-serve build/server/index.js",
+    "dev": "node --env-file-if-exists=.dev.vars ./node_modules/@react-router/dev/bin.js dev",
+    "start": "node --env-file-if-exists=.dev.vars ./node_modules/@react-router/serve/bin.js build/server/index.js",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {

@@ -17,6 +17,7 @@ const sessionCookie = createCookie(SESSION_COOKIE_NAME, {
 type UserRow = {
   id: number;
   username: string;
+  role: "student" | "teacher";
 };
 
 type UserWithPasswordRow = UserRow & {
@@ -48,10 +49,11 @@ export async function getCurrentUser(request: Request) {
   const tokenHash = hashSessionToken(token);
   const user = db
     .prepare(
-      `SELECT users.id, users.username
+      `SELECT users.id, users.username, users.role
        FROM sessions
        INNER JOIN users ON users.id = sessions.user_id
        WHERE sessions.token_hash = ? AND sessions.expires_at > ?
+         AND users.role IN ('student', 'teacher')
        LIMIT 1`,
     )
     .get(tokenHash, Date.now()) as UserRow | undefined;
@@ -76,16 +78,17 @@ export async function verifyCredentials(usernameValue: unknown, passwordValue: u
   const db = await getDatabase();
   const user = db
     .prepare(
-      `SELECT id, username, password_hash
+      `SELECT id, username, role, password_hash
        FROM users
        WHERE username = ? COLLATE NOCASE
+         AND role IN ('student', 'teacher')
        LIMIT 1`,
     )
     .get(username) as UserWithPasswordRow | undefined;
 
   if (!user || !(await verifyPassword(password, user.password_hash))) return null;
 
-  return { id: user.id, username: user.username } satisfies CurrentUser;
+  return { id: user.id, username: user.username, role: user.role } satisfies CurrentUser;
 }
 
 export async function createUserSession(request: Request, userId: number) {

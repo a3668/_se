@@ -1,7 +1,13 @@
 import { type RouteConfig, index, route } from "@react-router/dev/routes";
+import { ADMIN_ROUTE_SEGMENT } from "./lib/admin-paths";
 
 export default [
   index("routes/home.tsx"),
   route("login", "routes/login.tsx"),
   route("logout", "routes/logout.ts"),
+  route(`${ADMIN_ROUTE_SEGMENT}/login`, "routes/admin/login.tsx"),
+  route(`${ADMIN_ROUTE_SEGMENT}/logout`, "routes/admin/logout.ts"),
+  route(ADMIN_ROUTE_SEGMENT, "routes/admin/layout.tsx", [
+    index("routes/admin/home.tsx"),
+  ]),
 ] satisfies RouteConfig;
