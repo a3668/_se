@@ -9,27 +9,17 @@
 
 ## 首次設定
 
-1. 安裝套件：
+在 `hw2/` 專案根目錄執行：
 
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+npm run db:migrate
+npm run dev
+```
 
-2. 複製環境變數範例：
+`npm run db:migrate` 依檔名順序套用 `migrations/*.sql` 到 `data/hw2.sqlite`。新增 schema 變更時，建立下一個編號的純 SQL 檔案，例如 `migrations/0002_add_status.sql`，再手動執行相同指令。已套用的檔案會略過。
 
-   ```bash
-   cp .env.example .env
-   ```
-
-3. 編輯 `.env`，設定首次建立帳號使用的帳號與密碼。
-
-4. 啟動本機開發伺服器：
-
-   ```bash
-   npm run dev
-   ```
-
-第一次存取網站時會自動建立 `data/hw2.sqlite`、`users`、`sessions`，並在資料庫沒有使用者時建立 `.env` 指定的帳號。既有帳號不會因為之後修改 `.env` 而被覆寫。
+Migration 只建立資料表，不建立登入帳號；新資料庫需要另外建立帳號才能登入。
 
 ## 路由
 
@@ -45,4 +35,4 @@ npm run build
 npm start
 ```
 
-`.env` 與 SQLite 資料檔均已排除版本控制。
+SQLite 資料檔已排除版本控制。

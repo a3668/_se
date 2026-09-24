@@ -48,7 +48,7 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
       <section className="auth-card">
         <p className="eyebrow">Member sign in</p>
         <h1>登入</h1>
-        <p className="auth-intro">輸入本機初始化帳號，登入成功後會回到首頁。</p>
+        <p className="auth-intro">輸入既有帳號，登入成功後會回到首頁。</p>
 
         <Form className="auth-form" method="post">
           <label>
