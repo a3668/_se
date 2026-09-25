@@ -13,6 +13,7 @@ import {
 import type { Route } from "./+types/root";
 import { getCurrentUser } from "./lib/auth.server";
 import { ADMIN_BASE_PATH } from "./lib/admin-paths";
+import { isPortalPath } from "./lib/portal-navigation";
 import "./app.css";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -75,16 +76,19 @@ function SiteHeader() {
 export default function App() {
   const pathname = useLocation().pathname;
   const isAdminPath = pathname === ADMIN_BASE_PATH || pathname.startsWith(`${ADMIN_BASE_PATH}/`);
+  const usesStandaloneLayout = isAdminPath || isPortalPath(pathname);
+
+  if (usesStandaloneLayout) return <Outlet />;
 
   return (
     <div className="site-layout">
-      {isAdminPath ? null : <SiteHeader />}
+      <SiteHeader />
       <div className="site-content">
         <Outlet />
       </div>
-      {isAdminPath ? null : <footer className="site-footer">
+      <footer className="site-footer">
         <div className="shell">現代軟體工程｜HW2</div>
-      </footer>}
+      </footer>
     </div>
   );
 }

@@ -14,7 +14,7 @@ export function meta() {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  if (await getCurrentUser(request)) throw redirect("/");
+  if (await getCurrentUser(request)) throw redirect("/home");
   return null;
 }
 
@@ -32,7 +32,7 @@ export async function action({ request }: Route.ActionArgs) {
     );
   }
 
-  return redirect("/", {
+  return redirect("/home", {
     headers: {
       "Set-Cookie": await createUserSession(request, user.id),
     },
@@ -48,7 +48,7 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
       <section className="auth-card">
         <p className="eyebrow">Student & Teacher sign in</p>
         <h1>學生／老師登入</h1>
-        <p className="auth-intro">輸入既有帳號，登入成功後會回到首頁。</p>
+        <p className="auth-intro">輸入既有帳號，登入成功後會進入校務資訊系統。</p>
 
         <Form className="auth-form" method="post">
           <label>

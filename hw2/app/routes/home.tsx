@@ -1,55 +1,84 @@
 import { Link, useRouteLoaderData } from "react-router";
-import type { loader as rootLoader } from "../root";
+import type { loader as portalLoader } from "./portal/layout";
 
 export function meta() {
   return [
-    { title: "HW2｜本機登入示範" },
-    {
-      name: "description",
-      content: "以 React Router 與本機 SQLite 製作的登入狀態示範。",
-    },
+    { title: "系統首頁｜校務資訊系統" },
+    { name: "description", content: "校務資訊系統首頁。" },
   ];
 }
 
+const quickLinks = [
+  { label: "我的課表", path: "/query/my-schedule", description: "查看目前的課程安排" },
+  { label: "選課結果", path: "/course/result", description: "查詢本學期選課結果" },
+  { label: "學期成績", path: "/query/semester-grades", description: "查看各科目成績資訊" },
+  { label: "缺曠明細", path: "/student/absence-details", description: "查詢個人出缺勤紀錄" },
+];
+
+const roleLabels = {
+  student: "學生",
+  teacher: "老師",
+} as const;
+
 export default function Home() {
-  const rootData = useRouteLoaderData<typeof rootLoader>("root");
-  const user = rootData?.user;
+  const portalData = useRouteLoaderData<typeof portalLoader>("routes/portal/layout");
+  if (!portalData) return null;
 
   return (
-    <main className="home-page shell">
-      <section className="hero-card">
-        <div className="hero-copy">
-          <p className="eyebrow">React Router · SQLite</p>
-          <h1>HW2 本機登入示範</h1>
-          <p className="hero-description">
-            學生與老師使用本機 SQLite 帳號登入；管理員使用獨立登入入口。
-          </p>
-          {user ? (
-            <div className="status-card is-signed-in">
-              <span className="status-dot" aria-hidden="true" />
-              <div>
-                <span>目前登入帳號</span>
-                <strong>{user.username}</strong>
-              </div>
-            </div>
-          ) : (
-            <div className="hero-actions">
-              <Link className="primary-link" to="/login">
-                前往登入
-              </Link>
-              <span>目前尚未登入</span>
-            </div>
-          )}
+    <div className="portal-page portal-home">
+      <section className="portal-welcome">
+        <div>
+          <p className="portal-kicker">Welcome back</p>
+          <h1>歡迎使用校務資訊系統</h1>
+          <p>您可以從左側功能選單開始，或直接選擇下方常用功能。</p>
         </div>
-        <aside className="feature-panel" aria-label="作業功能">
-          <p>包含功能</p>
-          <ol>
-            <li><span>01</span> 本機帳號驗證</li>
-            <li><span>02</span> Cookie session</li>
-            <li><span>03</span> 登入狀態顯示</li>
-          </ol>
-        </aside>
+        <dl className="portal-profile-summary">
+          <div>
+            <dt>登入帳號</dt>
+            <dd>{portalData.user.username}</dd>
+          </div>
+          <div>
+            <dt>身分類別</dt>
+            <dd>{roleLabels[portalData.user.role]}</dd>
+          </div>
+        </dl>
       </section>
-    </main>
+
+      <section className="portal-section" aria-labelledby="quick-links-title">
+        <div className="portal-section-heading">
+          <div>
+            <p className="portal-kicker">Quick access</p>
+            <h2 id="quick-links-title">常用功能</h2>
+          </div>
+          <span>快速前往常用服務</span>
+        </div>
+        <div className="portal-quick-grid">
+          {quickLinks.map((item, index) => (
+            <Link key={item.path} to={item.path}>
+              <span className="portal-quick-number">{String(index + 1).padStart(2, "0")}</span>
+              <strong>{item.label}</strong>
+              <small>{item.description}</small>
+              <span className="portal-quick-arrow" aria-hidden="true">→</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="portal-section" aria-labelledby="notice-title">
+        <div className="portal-section-heading">
+          <div>
+            <p className="portal-kicker">Announcements</p>
+            <h2 id="notice-title">系統公告</h2>
+          </div>
+        </div>
+        <div className="portal-notice">
+          <span aria-hidden="true">i</span>
+          <div>
+            <strong>目前沒有最新公告</strong>
+            <p>系統通知與重要訊息將顯示於此處。</p>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
