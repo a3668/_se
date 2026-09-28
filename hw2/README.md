@@ -16,7 +16,7 @@ npm install
 npm run db:migrate
 ```
 
-`npm run db:migrate` 依檔名順序套用 `migrations/*.sql` 到 `data/hw2.sqlite`。`0001_initial.sql` 建立 `users` 與 `sessions`；`users.role` 只允許 `student` 或 `teacher`。`0002_create_students.sql` 建立學生資料表，以 `user_id` 對應 `users.id`；學生的 `users.username` 即學號。
+`npm run db:migrate` 依檔名順序套用 `migrations/*.sql` 到 `data/hw2.sqlite`。`0001_initial.sql` 建立 `users` 與 `sessions`；`users.role` 只允許 `student` 或 `teacher`。`0002_create_students.sql` 建立學生資料表，`0003_create_teachers.sql` 建立教師資料表，兩者都以 `user_id` 對應 `users.id`。學生與教師的 `users.username` 分別是學號與教師編號。
 
 管理員帳號獨立於資料庫。複製 `.dev.vars.example` 為專案根目錄的 `.dev.vars`，填入管理員帳號、scrypt 密碼雜湊及隨機 session secret。`.dev.vars` 不會納入版本控制：
 
@@ -38,7 +38,13 @@ node -e 'console.log(require("node:crypto").randomBytes(32).toString("hex"))'
 npm run dev
 ```
 
-`npm run dev` 與 `npm start` 會載入 `.dev.vars`。管理員未設定完整時，管理員登入頁回傳 503。老師帳號與管理後台的帳號建立功能尚未加入。
+`npm run dev` 與 `npm start` 會載入 `.dev.vars`。管理員未設定完整時，管理員登入頁回傳 503。
+
+## 管理後台
+
+先套用 migrations，再以管理員帳號登入後台。學生與教師管理頁提供列表、依編號或姓名搜尋、新增、編輯資料及重設密碼。學號限 1–30 位數字，教師編號限 1–30 碼英數字；建立後均不可修改。學生資料包含姓名、生日、系所與年級；教師資料包含姓名、生日與系所。
+
+新增帳號的初始密碼是生日八碼（`YYYYMMDD`）。編輯生日不會自動更換密碼；按「重設密碼」才會改用目前生日八碼，並使該帳號所有既有登入失效。生日密碼容易被猜到，僅適合這個本機範例。
 
 ## 手動建立學生帳號
 
@@ -95,6 +101,8 @@ try {
 - `/logout`：學生與老師登出，只接受 POST
 - `/kpGjBpPZC2/login`：管理員登入頁
 - `/kpGjBpPZC2`：需管理員 session 的後台入口
+- `/kpGjBpPZC2/students`：學生管理
+- `/kpGjBpPZC2/teachers`：教師管理
 - `/kpGjBpPZC2/logout`：管理員登出，只接受 POST
 
 ## 其他指令
