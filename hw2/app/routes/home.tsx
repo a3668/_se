@@ -1,4 +1,5 @@
 import { Link, useRouteLoaderData } from "react-router";
+import { canAccessPortalPath } from "../lib/portal-navigation";
 import type { loader as portalLoader } from "./portal/layout";
 
 export function meta() {
@@ -53,14 +54,16 @@ export default function Home() {
           <span>快速前往常用服務</span>
         </div>
         <div className="portal-quick-grid">
-          {quickLinks.map((item, index) => (
-            <Link key={item.path} to={item.path}>
-              <span className="portal-quick-number">{String(index + 1).padStart(2, "0")}</span>
-              <strong>{item.label}</strong>
-              <small>{item.description}</small>
-              <span className="portal-quick-arrow" aria-hidden="true">→</span>
-            </Link>
-          ))}
+          {quickLinks
+            .filter((item) => canAccessPortalPath(item.path, portalData.user.role))
+            .map((item, index) => (
+              <Link key={item.path} to={item.path}>
+                <span className="portal-quick-number">{String(index + 1).padStart(2, "0")}</span>
+                <strong>{item.label}</strong>
+                <small>{item.description}</small>
+                <span className="portal-quick-arrow" aria-hidden="true">→</span>
+              </Link>
+            ))}
         </div>
       </section>
 

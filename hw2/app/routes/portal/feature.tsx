@@ -1,10 +1,12 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/feature";
+import { requireRole } from "../../lib/auth.server";
 import { getPortalNavigationItem } from "../../lib/portal-navigation";
 
-export function loader({ request }: Route.LoaderArgs) {
+export async function loader({ request }: Route.LoaderArgs) {
   const item = getPortalNavigationItem(new URL(request.url).pathname);
   if (!item) throw new Response("Not Found", { status: 404 });
+  await requireRole(request, ...item.roles);
   return { item };
 }
 

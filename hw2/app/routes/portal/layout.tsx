@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
-import { Form, Link, NavLink, Outlet, redirect, useLocation } from "react-router";
+import { Form, Link, NavLink, Outlet, useLocation } from "react-router";
 import type { Route } from "./+types/layout";
-import { getCurrentUser } from "../../lib/auth.server";
-import { PORTAL_NAVIGATION } from "../../lib/portal-navigation";
+import { requireUser } from "../../lib/auth.server";
+import { getPortalNavigationForRole } from "../../lib/portal-navigation";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const user = await getCurrentUser(request);
-  if (!user) throw redirect("/login");
-  return { user };
+  return { user: await requireUser(request) };
 }
 
 const roleLabels = {
@@ -96,7 +94,7 @@ export default function PortalLayout({ loaderData }: Route.ComponentProps) {
               <span aria-hidden="true">⌂</span>
               系統首頁
             </NavLink>
-            {PORTAL_NAVIGATION.map((group) => (
+            {getPortalNavigationForRole(loaderData.user.role).map((group) => (
               <section className="portal-nav-group" key={group.label}>
                 <h2>{group.label}</h2>
                 <ul>

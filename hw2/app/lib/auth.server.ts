@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
-import { createCookie } from "react-router";
+import { createCookie, redirect } from "react-router";
 import { getDatabase } from "./db.server";
 import { verifyPassword } from "./password.server";
+import type { PortalRole } from "./portal-navigation";
 
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7;
 const SESSION_COOKIE_NAME = "hw2_session";
@@ -17,7 +18,7 @@ const sessionCookie = createCookie(SESSION_COOKIE_NAME, {
 type UserRow = {
   id: number;
   username: string;
-  role: "student" | "teacher";
+  role: PortalRole;
 };
 
 type UserWithPasswordRow = UserRow & {
@@ -63,6 +64,18 @@ export async function getCurrentUser(request: Request) {
     return null;
   }
 
+  return user;
+}
+
+export async function requireUser(request: Request) {
+  const user = await getCurrentUser(request);
+  if (!user) throw redirect("/login");
+  return user;
+}
+
+export async function requireRole(request: Request, ...roles: PortalRole[]) {
+  const user = await requireUser(request);
+  if (!roles.includes(user.role)) throw new Response("Forbidden", { status: 403 });
   return user;
 }
 
