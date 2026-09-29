@@ -16,7 +16,7 @@ npm install
 npm run db:migrate
 ```
 
-`npm run db:migrate` 依檔名順序套用 `migrations/*.sql` 到 `data/hw2.sqlite`。`0001_initial.sql` 建立 `users` 與 `sessions`；`users.role` 只允許 `student` 或 `teacher`。`0002_create_students.sql` 建立學生資料表，`0003_create_teachers.sql` 建立教師資料表，兩者都以 `user_id` 對應 `users.id`。學生與教師的 `users.username` 分別是學號與教師編號。
+`npm run db:migrate` 依檔名順序套用 `migrations/*.sql` 到 `data/hw2.sqlite`。`0001_initial.sql` 建立 `users` 與 `sessions`；`users.role` 只允許 `student` 或 `teacher`。`0002_create_students.sql` 建立學生資料表，`0003_create_teachers.sql` 建立教師資料表，兩者都以 `user_id` 對應 `users.id`。`0004_create_courses.sql` 建立課程、開課與課表資料表；開課的 `semester` 使用 `115-1` 這類學期代碼。學生與教師的 `users.username` 分別是學號與教師編號。
 
 管理員帳號獨立於資料庫。複製 `.dev.vars.example` 為專案根目錄的 `.dev.vars`，填入管理員帳號、scrypt 密碼雜湊及隨機 session secret。`.dev.vars` 不會納入版本控制：
 
