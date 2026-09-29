@@ -16,7 +16,7 @@ export function AccountForm({ kind, fields, creating, error }: Props) {
       <label>
         <span>{kind === "students" ? "學號" : "教師編號"}</span>
         {creating ? (
-          <input name="username" defaultValue={fields.username} maxLength={30} pattern={kind === "students" ? "[0-9]{1,30}" : "[A-Za-z0-9]{1,30}"} required />
+          <input name="username" defaultValue={fields.username} maxLength={kind === "students" ? 9 : 30} pattern={kind === "students" ? "S[0-9]{8}" : "[A-Za-z0-9]{1,30}"} required />
         ) : (
           <input value={fields.username} readOnly aria-readonly="true" />
         )}

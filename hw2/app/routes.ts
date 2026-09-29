@@ -7,6 +7,7 @@ export default [
   route("logout", "routes/logout.ts"),
   layout("routes/portal/layout.tsx", [
     route("home", "routes/home.tsx"),
+    route("query/class-data", "routes/portal/course-catalog.tsx"),
     route(":section/:feature", "routes/portal/feature.tsx"),
   ]),
   route(`${ADMIN_ROUTE_SEGMENT}/login`, "routes/admin/login.tsx"),

@@ -50,9 +50,9 @@ function validDate(value: string) {
 
 export function validateAccountFields(kind: AccountKind, fields: AccountFields, creating: boolean) {
   if (creating) {
-    const pattern = kind === "students" ? /^\d{1,30}$/ : /^[A-Za-z0-9]{1,30}$/;
+    const pattern = kind === "students" ? /^S\d{8}$/ : /^[A-Za-z0-9]{1,30}$/;
     if (!pattern.test(fields.username)) {
-      return kind === "students" ? "學號須為 1–30 位數字。" : "教師編號須為 1–30 碼英數字。";
+      return kind === "students" ? "學號須為 S 開頭加 8 位數字。" : "教師編號須為 1–30 碼英數字。";
     }
   }
   if (!fields.name || fields.name.length > 100) return "姓名須為 1–100 字。";

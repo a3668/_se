@@ -1076,6 +1076,91 @@ a {
   font-weight: 800;
 }
 
+.course-catalog-heading h1 {
+  margin: 0;
+  font-family: Georgia, "Noto Serif TC", serif;
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 500;
+}
+
+.course-catalog-heading > p:last-child {
+  margin: 12px 0 0;
+  color: #667169;
+  font-size: 13px;
+}
+
+.course-catalog-filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 26px 0 20px;
+}
+
+.course-catalog-filters label {
+  display: grid;
+  gap: 7px;
+  color: #536057;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.course-catalog-filters select,
+.course-catalog-filters button {
+  min-height: 42px;
+  border: 1px solid #c8d0ca;
+  padding: 0 12px;
+  background: #fff;
+  color: #18231d;
+  font: inherit;
+}
+
+.course-catalog-filters button {
+  border-color: #244b38;
+  padding-inline: 20px;
+  background: #244b38;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.course-catalog-table-wrap { overflow-x: auto; }
+
+.course-catalog-table {
+  width: 100%;
+  min-width: 800px;
+  border-collapse: collapse;
+  background: #fff;
+  font-size: 13px;
+}
+
+.course-catalog-table th,
+.course-catalog-table td {
+  border-bottom: 1px solid #d9ded9;
+  padding: 14px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.course-catalog-table th {
+  background: #e7eee9;
+  color: #244b38;
+  white-space: nowrap;
+}
+
+.course-catalog-table td small {
+  display: block;
+  margin-top: 5px;
+  color: #77817a;
+}
+
+.course-catalog-empty {
+  border: 1px solid #d9ded9;
+  padding: 28px;
+  background: #fff;
+  color: #667169;
+}
+
 .portal-menu-button:focus-visible,
 .portal-sidebar button:focus-visible,
 .portal-nav-home:focus-visible,
