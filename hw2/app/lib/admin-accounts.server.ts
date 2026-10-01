@@ -64,20 +64,50 @@ export function validateAccountFields(kind: AccountKind, fields: AccountFields, 
   return null;
 }
 
-export function listAccounts(kind: AccountKind, query: string): Account[] {
+export const ACCOUNT_PAGE_SIZE = 20;
+
+export function listAccountPage(
+  kind: AccountKind,
+  filters: { query: string; department: string; grade: string },
+  requestedPage: number,
+) {
   const db = getDatabase();
   const table = accountTable(kind);
-  const grade = kind === "students" ? "profile.grade" : "NULL AS grade";
-  return db.prepare(
+  const role = kind === "students" ? "student" : "teacher";
+  const gradeColumn = kind === "students" ? "profile.grade" : "NULL AS grade";
+  const from = `FROM ${table} AS profile JOIN users ON users.id = profile.user_id`;
+  const where = `WHERE users.role = ?
+    AND (? = '' OR instr(lower(users.username), lower(?)) > 0
+                 OR instr(lower(profile.name), lower(?)) > 0)
+    AND (? = '' OR profile.department = ?)
+    ${kind === "students" ? "AND (? = '' OR profile.grade = ?)" : ""}`;
+  const bindings = [role, filters.query, filters.query, filters.query,
+    filters.department, filters.department];
+  if (kind === "students") bindings.push(filters.grade, filters.grade);
+  const { totalItems } = db.prepare(`SELECT COUNT(*) AS totalItems ${from} ${where}`)
+    .get(...bindings) as { totalItems: number };
+  const totalPages = Math.max(1, Math.ceil(totalItems / ACCOUNT_PAGE_SIZE));
+  const currentPage = Math.min(requestedPage, totalPages);
+  const accounts = db.prepare(
     `SELECT users.id AS user_id, users.username, profile.name, profile.birth_date,
-            profile.department, ${grade}
-     FROM ${table} AS profile
-     JOIN users ON users.id = profile.user_id
-     WHERE users.role = ?
-       AND (? = '' OR instr(lower(users.username), lower(?)) > 0
-                    OR instr(lower(profile.name), lower(?)) > 0)
-     ORDER BY users.username COLLATE NOCASE`,
-  ).all(kind === "students" ? "student" : "teacher", query, query, query) as Account[];
+            profile.department, ${gradeColumn}
+     ${from} ${where}
+     ORDER BY users.username COLLATE NOCASE, users.id
+     LIMIT ? OFFSET ?`,
+  ).all(...bindings, ACCOUNT_PAGE_SIZE, (currentPage - 1) * ACCOUNT_PAGE_SIZE) as Account[];
+  const departments = db.prepare(
+    `SELECT DISTINCT profile.department ${from} WHERE users.role = ?
+     ORDER BY profile.department COLLATE NOCASE`,
+  ).all(role) as { department: string }[];
+  const grades = kind === "students" ? db.prepare(
+    `SELECT DISTINCT profile.grade ${from} WHERE users.role = ? ORDER BY profile.grade`,
+  ).all(role) as { grade: number }[] : [];
+  return {
+    accounts,
+    departments: departments.map((row) => row.department),
+    grades: grades.map((row) => row.grade),
+    pagination: { currentPage, totalPages, totalItems, pageSize: ACCOUNT_PAGE_SIZE },
+  };
 }
 
 export function getAccount(kind: AccountKind, id: number): Account | null {

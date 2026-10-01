@@ -1,7 +1,7 @@
 import { data, Form, redirect } from "react-router";
 import type { Route } from "./+types/account-edit";
 import { requireAdmin } from "../../lib/admin-auth.server";
-import { accountLabel } from "../../lib/admin-accounts";
+import { accountLabel, accountPath, accountListSearch } from "../../lib/admin-accounts";
 import type { AccountFields } from "../../lib/admin-accounts";
 import { fieldsFromForm, getAccount, parseAccountId, requireAccountKind, resetAccountPassword, updateAccount } from "../../lib/admin-accounts.server";
 import { AccountForm } from "./account-form";
@@ -17,7 +17,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const account = getAccount(kind, id);
   if (!account) throw new Response("Not Found", { status: 404 });
   const url = new URL(request.url);
-  return { kind, account, notice: url.searchParams.has("created") ? "帳號已新增。" : url.searchParams.has("saved") ? "資料已儲存。" : url.searchParams.has("reset") ? "密碼已重設，原有登入已失效。" : null };
+  return { kind, account, listSearch: accountListSearch(kind, url.search), notice: url.searchParams.has("created") ? "帳號已新增。" : url.searchParams.has("saved") ? "資料已儲存。" : url.searchParams.has("reset") ? "密碼已重設，原有登入已失效。" : null };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -36,11 +36,13 @@ export async function action({ request, params }: Route.ActionArgs) {
   const fields = fieldsFromForm(formData);
   const result = updateAccount(kind, id, fields);
   if (result.error) return data({ error: result.error, fields }, { status: 400 });
-  return redirect(`?saved=1`);
+  const search = new URLSearchParams(accountListSearch(kind, new URL(request.url).search));
+  search.set("saved", "1");
+  return redirect(`${accountPath(kind)}/${id}?${search}`);
 }
 
 export default function AccountEdit({ loaderData, actionData }: Route.ComponentProps) {
-  const { kind, account, notice } = loaderData;
+  const { kind, account, notice, listSearch } = loaderData;
   const fields: AccountFields = {
     ...(actionData?.fields ?? {
       name: account.name,
@@ -55,7 +57,7 @@ export default function AccountEdit({ loaderData, actionData }: Route.ComponentP
       <p className="admin-eyebrow">Account Management</p>
       <h1>編輯{accountLabel(kind)}</h1>
       {notice ? <p className="admin-notice" role="status">{notice}</p> : null}
-      <AccountForm key={JSON.stringify(fields)} kind={kind} creating={false} fields={fields} error={actionData?.fields ? actionData.error : undefined} />
+      <AccountForm key={JSON.stringify(fields)} kind={kind} creating={false} backHref={`${accountPath(kind)}/${account.user_id}${listSearch}`} backLabel="返回資料" fields={fields} error={actionData?.fields ? actionData.error : undefined} />
       <section className="admin-reset">
         <h2>重設密碼</h2>
         <p>重設為目前生日八碼（YYYYMMDD），並使這個帳號的所有登入失效。</p>

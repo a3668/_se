@@ -20,6 +20,7 @@ export default [
     index("routes/admin/home.tsx"),
     route(":kind", "routes/admin/accounts.tsx"),
     route(":kind/new", "routes/admin/account-new.tsx"),
-    route(":kind/:userId", "routes/admin/account-edit.tsx"),
+    route(":kind/:userId", "routes/admin/account-detail.tsx"),
+    route(":kind/:userId/edit", "routes/admin/account-edit.tsx"),
   ]),
 ] satisfies RouteConfig;

@@ -7,9 +7,11 @@ type Props = {
   fields: AccountFields;
   creating: boolean;
   error?: string;
+  backHref?: string;
+  backLabel?: string;
 };
 
-export function AccountForm({ kind, fields, creating, error }: Props) {
+export function AccountForm({ kind, fields, creating, error, backHref, backLabel }: Props) {
   const label = accountLabel(kind);
   return (
     <Form className="admin-account-form" method="post">
@@ -43,7 +45,7 @@ export function AccountForm({ kind, fields, creating, error }: Props) {
       {error ? <p className="admin-form-error" role="alert">{error}</p> : null}
       <div className="admin-actions">
         <button type="submit" name="intent" value="save">{creating ? `新增${label}` : "儲存資料"}</button>
-        <Link to={accountPath(kind)}>返回列表</Link>
+        <Link to={backHref ?? accountPath(kind)}>{backLabel ?? "返回列表"}</Link>
       </div>
     </Form>
   );

@@ -533,9 +533,12 @@ a {
 
 .admin-search > div {
   justify-content: flex-start;
+  align-items: flex-end;
+  flex-wrap: wrap;
 }
 
 .admin-search input,
+.admin-search select,
 .admin-account-form input {
   min-height: 44px;
   border: 1px solid #708197;
@@ -546,6 +549,51 @@ a {
 
 .admin-search input {
   width: min(100%, 360px);
+}
+
+.admin-filter {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-filter select {
+  max-width: 100%;
+}
+
+.admin-pagination-summary {
+  margin: 24px 0 12px;
+}
+
+.admin-pagination,
+.admin-pagination-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-pagination a,
+.admin-pagination span[aria-current],
+.admin-pagination span[aria-disabled] {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #708197;
+  padding: 8px 12px;
+  color: #b6d3ed;
+  text-decoration: none;
+}
+
+.admin-pagination a:hover,
+.admin-pagination span[aria-current] {
+  background: #b6d3ed;
+  color: #17212d;
+}
+
+.admin-pagination span[aria-disabled] {
+  opacity: 0.45;
 }
 
 .admin-table-wrap {
@@ -579,6 +627,68 @@ a {
   display: grid;
   gap: 20px;
   margin-top: 32px;
+}
+
+.admin-account-details {
+  display: grid;
+  gap: 20px;
+  margin: 32px 0;
+}
+
+.admin-account-details > div {
+  border-bottom: 1px solid #394757;
+  padding-bottom: 16px;
+}
+
+.admin-account-details dt {
+  color: #b6d3ed;
+  font-weight: 700;
+}
+
+.admin-account-details dd {
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-teacher-schedule {
+  margin-top: 40px;
+  border-top: 1px solid #394757;
+  padding-top: 20px;
+}
+
+.admin-schedule-table {
+  min-width: 1000px;
+  table-layout: fixed;
+  margin-top: 16px;
+}
+
+.admin-schedule-table caption {
+  padding: 12px;
+  text-align: left;
+  color: #c0ccd8;
+}
+
+.admin-schedule-table th:first-child {
+  width: 64px;
+}
+
+.admin-schedule-table td {
+  height: 64px;
+  padding: 8px;
+  vertical-align: top;
+}
+
+.admin-schedule-lesson {
+  display: grid;
+  gap: 4px;
+  border-left: 3px solid #b6d3ed;
+  padding: 8px;
+  background: #30465e;
+  overflow-wrap: anywhere;
+}
+
+.admin-schedule-lesson + .admin-schedule-lesson {
+  margin-top: 8px;
 }
 
 .admin-account-form label {
