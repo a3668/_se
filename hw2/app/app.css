@@ -1161,6 +1161,81 @@ a {
   color: #667169;
 }
 
+.student-course-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 22px 0;
+}
+
+.student-course-tabs a {
+  border: 1px solid #c8d0ca;
+  padding: 9px 14px;
+  background: #fff;
+  color: #244b38;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.student-course-tabs a[aria-current="page"] {
+  border-color: #244b38;
+  background: #244b38;
+  color: #fff;
+}
+
+.student-course-message {
+  border: 1px solid #b9d4bf;
+  padding: 12px 15px;
+  background: #eef7ef;
+  color: #244b38;
+}
+
+.student-course-message.is-error {
+  border-color: #e0b8b8;
+  background: #fff3f3;
+  color: #922f2f;
+}
+
+.student-course-button {
+  border: 1px solid #244b38;
+  padding: 7px 12px;
+  background: #244b38;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  white-space: nowrap;
+}
+
+.student-schedule-table {
+  width: 100%;
+  min-width: 750px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: #fff;
+  font-size: 12px;
+}
+
+.student-schedule-table th,
+.student-schedule-table td {
+  border: 1px solid #d9ded9;
+  padding: 9px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.student-schedule-table thead th {
+  background: #e7eee9;
+  color: #244b38;
+}
+
+.student-schedule-table tbody th { width: 56px; }
+.student-schedule-table td { height: 44px; }
+.student-schedule-table td.is-occupied { background: #edf4ee; }
+.student-schedule-table td small { display: block; margin-top: 5px; color: #667169; }
+.student-schedule-note { color: #667169; font-size: 12px; }
+.student-unscheduled { margin-top: 22px; }
+.student-unscheduled h2 { font-size: 17px; }
+
 .portal-menu-button:focus-visible,
 .portal-sidebar button:focus-visible,
 .portal-nav-home:focus-visible,

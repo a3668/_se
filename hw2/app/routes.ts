@@ -8,6 +8,10 @@ export default [
   layout("routes/portal/layout.tsx", [
     route("home", "routes/home.tsx"),
     route("query/class-data", "routes/portal/course-catalog.tsx"),
+    route("course/add", "routes/portal/course-add.tsx"),
+    route("course/drop", "routes/portal/course-drop.tsx"),
+    route("course/result", "routes/portal/course-result.tsx"),
+    route("query/my-schedule", "routes/portal/my-schedule.tsx"),
     route(":section/:feature", "routes/portal/feature.tsx"),
   ]),
   route(`${ADMIN_ROUTE_SEGMENT}/login`, "routes/admin/login.tsx"),
