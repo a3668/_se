@@ -29,12 +29,6 @@ export function StudentCourseList({ title, description, offerings, mode, error, 
         <h1>{title}</h1>
         <p>{description}</p>
       </header>
-      <nav className="student-course-tabs" aria-label="選課功能">
-        <Link to="/course/add" aria-current={mode === "add" ? "page" : undefined}>加選</Link>
-        <Link to="/course/drop" aria-current={mode === "drop" ? "page" : undefined}>退選</Link>
-        <Link to="/course/result" aria-current={mode === "result" ? "page" : undefined}>選課結果</Link>
-        <Link to="/query/my-schedule">我的課表</Link>
-      </nav>
       {error ? <p className="student-course-message is-error" role="alert">{error}</p> : null}
       {message ? <p className="student-course-message" role="status">{message}</p> : null}
       {offerings.length ? (
