@@ -7,7 +7,7 @@ export function AdminShell({ children, username }: { children: ReactNode; userna
     <div className="site-layout admin-layout">
       <header className="site-header">
         <div className="shell header-inner">
-          <Link className="brand" to={ADMIN_BASE_PATH} aria-label="管理後台首頁">
+          <Link className="brand" to={`${ADMIN_BASE_PATH}/`} reloadDocument aria-label="管理後台首頁">
             HW2<span>管理後台</span>
           </Link>
           <nav className="session-nav" aria-label="管理員功能">

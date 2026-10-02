@@ -5,6 +5,7 @@ export const ACTIVE_SEMESTER = "115-1";
 type OfferingRow = {
   offering_id: number;
   course_code: string;
+  department: string;
   name: string;
   grade: number;
   credits: number;
@@ -30,6 +31,7 @@ export type CourseSchedule = {
 export type StudentOffering = {
   id: number;
   code: string;
+  department: string;
   name: string;
   grade: number;
   credits: number;
@@ -66,10 +68,28 @@ function schedulesConflict(a: CourseSchedule[], b: CourseSchedule[]) {
   ));
 }
 
-export function getStudentOfferings(studentUserId: number) {
-  const department = getStudentDepartment(studentUserId);
+export function getStudentOfferingGrades() {
   const rows = getDatabase().prepare(
-    `SELECT o.id AS offering_id, c.course_code, c.name, c.grade, c.credits, c.category,
+    `SELECT DISTINCT c.grade FROM course_offerings o
+     JOIN courses c ON c.id = o.course_id
+     WHERE o.semester = ? ORDER BY c.grade`,
+  ).all(ACTIVE_SEMESTER) as { grade: number }[];
+  return rows.map((row) => row.grade);
+}
+
+export function getStudentOfferingDepartments() {
+  const rows = getDatabase().prepare(
+    `SELECT DISTINCT c.department FROM course_offerings o
+     JOIN courses c ON c.id = o.course_id
+     WHERE o.semester = ? ORDER BY c.department`,
+  ).all(ACTIVE_SEMESTER) as { department: string }[];
+  return rows.map((row) => row.department);
+}
+
+export function getStudentOfferings(studentUserId: number) {
+  getStudentDepartment(studentUserId);
+  const rows = getDatabase().prepare(
+    `SELECT o.id AS offering_id, c.course_code, c.department, c.name, c.grade, c.credits, c.category,
             o.section, o.capacity, t.name AS teacher_name,
             (SELECT COUNT(*) FROM enrollments e WHERE e.offering_id = o.id) AS enrolled_count,
             EXISTS(SELECT 1 FROM enrollments e WHERE e.offering_id = o.id AND e.student_user_id = ?) AS selected,
@@ -78,16 +98,16 @@ export function getStudentOfferings(studentUserId: number) {
      JOIN courses c ON c.id = o.course_id
      JOIN teachers t ON t.user_id = o.teacher_user_id
      LEFT JOIN course_schedules s ON s.offering_id = o.id
-     WHERE o.semester = ? AND c.department = ?
+     WHERE o.semester = ?
      ORDER BY c.grade, c.course_code, o.section, s.weekday, s.start_period`,
-  ).all(studentUserId, ACTIVE_SEMESTER, department) as OfferingRow[];
+  ).all(studentUserId, ACTIVE_SEMESTER) as OfferingRow[];
 
   const offerings: StudentOffering[] = [];
   for (const row of rows) {
     let offering = offerings[offerings.length - 1];
     if (offering?.id !== row.offering_id) {
       offering = {
-        id: row.offering_id, code: row.course_code, name: row.name, grade: row.grade,
+        id: row.offering_id, code: row.course_code, department: row.department, name: row.name, grade: row.grade,
         credits: row.credits, category: row.category, section: row.section,
         capacity: row.capacity, teacherName: row.teacher_name,
         enrolledCount: row.enrolled_count, selected: Boolean(row.selected),
@@ -115,15 +135,15 @@ export function addEnrollment(studentUserId: number, offeringId: number): string
   const db = getDatabase();
   db.exec("BEGIN IMMEDIATE");
   try {
-    const department = getStudentDepartment(studentUserId);
+    getStudentDepartment(studentUserId);
     const offering = db.prepare(
-      `SELECT o.capacity, o.semester, c.department
-       FROM course_offerings o JOIN courses c ON c.id = o.course_id
+      `SELECT o.capacity, o.semester
+       FROM course_offerings o
        WHERE o.id = ?`,
-    ).get(offeringId) as { capacity: number; semester: string; department: string } | undefined;
+    ).get(offeringId) as { capacity: number; semester: string } | undefined;
 
     let error: string | null = null;
-    if (!offering || offering.semester !== ACTIVE_SEMESTER || offering.department !== department) {
+    if (!offering || offering.semester !== ACTIVE_SEMESTER) {
       error = "無法加選這門課。";
     } else if (db.prepare(
       "SELECT 1 FROM enrollments WHERE student_user_id = ? AND offering_id = ?",

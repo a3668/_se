@@ -1,4 +1,5 @@
 import { Form, Link } from "react-router";
+import type { ReactNode } from "react";
 import type { StudentOffering } from "../../lib/enrollments.server";
 
 const weekdays = ["", "一", "二", "三", "四", "五", "六", "日"];
@@ -16,9 +17,12 @@ type Props = {
   mode: "add" | "drop" | "result";
   error?: string;
   message?: string;
+  searchControls?: ReactNode;
+  paginationControls?: ReactNode;
+  emptyMessage?: string;
 };
 
-export function StudentCourseList({ title, description, offerings, mode, error, message }: Props) {
+export function StudentCourseList({ title, description, offerings, mode, error, message, searchControls, paginationControls, emptyMessage }: Props) {
   return (
     <div className="portal-page course-catalog-page">
       <nav aria-label="麵包屑" className="portal-breadcrumb">
@@ -29,6 +33,7 @@ export function StudentCourseList({ title, description, offerings, mode, error, 
         <h1>{title}</h1>
         <p>{description}</p>
       </header>
+      {searchControls}
       {error ? <p className="student-course-message is-error" role="alert">{error}</p> : null}
       {message ? <p className="student-course-message" role="status">{message}</p> : null}
       {offerings.length ? (
@@ -58,7 +63,8 @@ export function StudentCourseList({ title, description, offerings, mode, error, 
             })}</tbody>
           </table>
         </div>
-      ) : <p className="course-catalog-empty">{mode === "add" ? "目前沒有可查詢的本系課程。" : "目前沒有已選課程。"}</p>}
+      ) : <p className="course-catalog-empty">{emptyMessage ?? (mode === "add" ? "目前沒有可查詢的課程。" : "目前沒有已選課程。")}</p>}
+      {paginationControls}
     </div>
   );
 }

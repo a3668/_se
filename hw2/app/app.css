@@ -1178,6 +1178,7 @@ a.admin-primary-link {
   font-weight: 700;
 }
 
+.course-catalog-filters input,
 .course-catalog-filters select,
 .course-catalog-filters button {
   min-height: 42px;

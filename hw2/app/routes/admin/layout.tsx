@@ -12,7 +12,7 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
   return (
     <AdminShell username={loaderData.admin.username}>
       <nav className="admin-nav" aria-label="管理功能">
-        <Link to={ADMIN_BASE_PATH}>首頁</Link>
+        <Link to={`${ADMIN_BASE_PATH}/`} reloadDocument>首頁</Link>
         <Link to={ADMIN_STUDENTS_PATH}>學生管理</Link>
         <Link to={ADMIN_TEACHERS_PATH}>教師管理</Link>
       </nav>

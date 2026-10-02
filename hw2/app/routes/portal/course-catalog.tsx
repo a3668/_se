@@ -2,6 +2,7 @@ import { Form, Link } from "react-router";
 import type { Route } from "./+types/course-catalog";
 import { requireRole } from "../../lib/auth.server";
 import { getDatabase } from "../../lib/db.server";
+import { ACTIVE_SEMESTER, getStudentOfferingDepartments, getStudentOfferingGrades } from "../../lib/enrollments.server";
 
 type CourseRow = {
   offering_id: number;
@@ -22,33 +23,20 @@ type CourseRow = {
 const weekdays = ["", "一", "二", "三", "四", "五", "六", "日"];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const user = await requireRole(request, "student", "teacher");
+  await requireRole(request, "student", "teacher");
   const db = getDatabase();
-  const profileTable = user.role === "student" ? "students" : "teachers";
-  const profile = db.prepare(`SELECT department FROM ${profileTable} WHERE user_id = ?`)
-    .get(user.id) as { department: string } | undefined;
-  const semesters = db.prepare("SELECT DISTINCT semester FROM course_offerings ORDER BY semester")
-    .all() as { semester: string }[];
-  const departments = db.prepare(
-    `SELECT DISTINCT courses.department AS department
-     FROM courses JOIN course_offerings ON course_offerings.course_id = courses.id
-     ORDER BY courses.department`,
-  ).all() as { department: string }[];
-
-  const url = new URL(request.url);
-  const semesterOptions = semesters.map((row) => row.semester);
-  const departmentOptions = departments.map((row) => row.department);
-  const requestedSemester = url.searchParams.get("semester");
-  const requestedDepartment = url.searchParams.get("department");
-  const semester = requestedSemester ?? (semesterOptions.includes("115-1") ? "115-1" : semesterOptions[0] ?? "");
-  const department = requestedDepartment ?? (
-    profile && departmentOptions.includes(profile.department) ? profile.department : departmentOptions[0] ?? ""
-  );
-  if ((semester && !semesterOptions.includes(semester)) || (department && !departmentOptions.includes(department))) {
+  const departmentOptions = getStudentOfferingDepartments();
+  const gradeOptions = getStudentOfferingGrades();
+  const params = new URL(request.url).searchParams;
+  const department = params.get("department")?.trim().slice(0, 100) ?? "";
+  const grade = params.get("grade")?.trim().slice(0, 100) ?? "";
+  const searched = params.get("search") === "1" || Boolean(department || grade);
+  if ((department && !departmentOptions.includes(department))
+    || (grade && !gradeOptions.some((value) => String(value) === grade))) {
     throw new Response("Bad Request", { status: 400 });
   }
 
-  const rows = db.prepare(
+  const rows = searched ? db.prepare(
     `SELECT course_offerings.id AS offering_id, courses.course_code, courses.name,
             courses.credits, courses.grade, courses.category, course_offerings.section,
             course_offerings.capacity, teachers.name AS teacher_name,
@@ -58,10 +46,12 @@ export async function loader({ request }: Route.LoaderArgs) {
      JOIN courses ON courses.id = course_offerings.course_id
      JOIN teachers ON teachers.user_id = course_offerings.teacher_user_id
      LEFT JOIN course_schedules ON course_schedules.offering_id = course_offerings.id
-     WHERE course_offerings.semester = ? AND courses.department = ?
+     WHERE course_offerings.semester = ?
+       AND (? = '' OR courses.department = ?)
+       AND (? = '' OR courses.grade = ?)
      ORDER BY courses.grade, courses.course_code, course_offerings.section,
               course_schedules.weekday, course_schedules.start_period`,
-  ).all(semester, department) as CourseRow[];
+  ).all(ACTIVE_SEMESTER, department, department, grade, grade) as CourseRow[] : [];
 
   const courses: Array<Omit<CourseRow, "weekday" | "start_period" | "end_period" | "classroom"> & { schedules: string[] }> = [];
   for (const row of rows) {
@@ -80,7 +70,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  return { semester, department, semesters: semesterOptions, departments: departmentOptions, courses };
+  return { semester: ACTIVE_SEMESTER, department, grade, grades: gradeOptions, departments: departmentOptions, courses, searched };
 }
 
 export function meta() {
@@ -88,7 +78,7 @@ export function meta() {
 }
 
 export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
-  const { semester, department, semesters, departments, courses } = loaderData;
+  const { semester, department, grade, grades, departments, courses, searched } = loaderData;
   return (
     <div className="portal-page course-catalog-page">
       <nav aria-label="麵包屑" className="portal-breadcrumb">
@@ -99,20 +89,24 @@ export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
       <header className="course-catalog-heading">
         <p className="portal-kicker">Course catalog</p>
         <h1>課程資料查詢</h1>
-        <p>以下為示範開課資料，非來源學校的正式課表。</p>
+        <p>以下為 {semester} 示範開課資料，非來源學校的正式課表。</p>
       </header>
-      <Form className="course-catalog-filters" method="get">
-        <label>學期
-          <select name="semester" defaultValue={semester}>
-            {semesters.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-        </label>
-        <label>系所
+      <Form key={JSON.stringify([department, grade])} className="course-catalog-filters" method="get" action="/query/class-data">
+        <input type="hidden" name="search" value="1" />
+        <label>科系
           <select name="department" defaultValue={department}>
+            <option value="">全部科系</option>
             {departments.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
         </label>
+        <label>年級
+          <select name="grade" defaultValue={grade}>
+            <option value="">全部年級</option>
+            {grades.map((value) => <option key={value} value={value}>{value} 年級</option>)}
+          </select>
+        </label>
         <button type="submit">查詢</button>
+        {searched ? <Link to="/query/class-data">清除</Link> : null}
       </Form>
       {courses.length ? (
         <div className="course-catalog-table-wrap">
@@ -133,7 +127,7 @@ export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
             ))}</tbody>
           </table>
         </div>
-      ) : <p className="course-catalog-empty">此學期沒有符合條件的開課資料。</p>}
+      ) : <p className="course-catalog-empty">{searched ? "此學期沒有符合條件的開課資料。" : "請先查詢課程。"}</p>}
     </div>
   );
 }
