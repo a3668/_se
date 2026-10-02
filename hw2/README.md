@@ -16,7 +16,7 @@ npm install
 npm run db:migrate
 ```
 
-`npm run db:migrate` 依檔名順序套用 `migrations/*.sql` 到 `data/hw2.sqlite`。`0001_initial.sql` 建立 `users` 與 `sessions`；`users.role` 只允許 `student` 或 `teacher`。`0002_create_students.sql` 建立學生資料表，`0003_create_teachers.sql` 建立教師資料表，兩者都以 `user_id` 對應 `users.id`。`0004_create_courses.sql` 建立課程、開課與課表資料表；開課的 `semester` 使用 `115-1` 這類學期代碼。學生與教師的 `users.username` 分別是學號與教師編號。
+`npm run db:migrate` 依檔名順序套用 `migrations/*.sql` 到 `data/hw2.sqlite`。`0001_initial.sql` 建立 `users` 與 `sessions`；`users.role` 只允許 `student` 或 `teacher`。`0002_create_students.sql` 建立學生資料表，`0003_create_teachers.sql` 建立教師資料表，兩者都以 `user_id` 對應 `users.id`。`0004_create_courses.sql` 建立課程、開課與課表資料表；開課的 `semester` 使用 `115-1` 這類學期代碼。`0005_create_enrollments.sql` 建立學生選課資料表。學生與教師的 `users.username` 分別是學號與教師編號。
 
 管理員帳號獨立於資料庫。複製 `.dev.vars.example` 為專案根目錄的 `.dev.vars`，填入管理員帳號、scrypt 密碼雜湊及隨機 session secret。`.dev.vars` 不會納入版本控制：
 
@@ -42,7 +42,11 @@ npm run dev
 
 ## 管理後台
 
-先套用 migrations，再以管理員帳號登入後台。學生與教師管理頁提供列表、依編號或姓名搜尋、新增、編輯資料及重設密碼。學號限 1–30 位數字，教師編號限 1–30 碼英數字；建立後均不可修改。學生資料包含姓名、生日、系所與年級；教師資料包含姓名、生日與系所。
+先套用 migrations，再以管理員帳號登入後台。學生與教師管理頁提供列表、依編號或姓名搜尋、新增、編輯資料及重設密碼。學號為 `S` 開頭加 8 位數字，教師編號限 1–30 碼英數字；建立後均不可修改。學生資料包含姓名、生日、系所與年級；教師資料包含姓名、生日與系所。
+
+已登入的學生與教師可在 `/query/class-data` 依學期及系所查詢課程、授課教師與上課時段。這批 15 系資料為虛構示範；課名參考公開課程地圖，學分、必選修、115 學年的開課、教師及時段均為示範配置，不代表來源學校的正式資料。參考來源：[中正大學課程地圖](https://coursemap.ccu.edu.tw/all_dept_list.php)、[臺科大各系課程地圖](https://www.academic.ntust.edu.tw/p/404-1048-78991.php?Lang=zh-tw)、[臺大土木課程地圖](https://coursemap.aca.ntu.edu.tw/course_map_all/class.php?code=5010)、[屏科大應外課程規劃](https://dml.npust.edu.tw/%E8%AA%B2%E7%A8%8B%E8%A6%8F%E5%8A%83/)與[中國科大視傳課程地圖](https://www.cute.edu.tw/dvcd/course-map.html)。
+
+學生可在 `/course/add`、`/course/drop` 加退選本系 `115-1` 的課程（可跨年級），在 `/course/result` 查看已選課程，並在 `/query/my-schedule` 查看週課表。加選會檢查名額與時段衝突；必修也可退選。目前本機 600 位示範學生已各預排 3 門本系同年級必修，`115-2` 暫不開放加退選。
 
 新增帳號的初始密碼是生日八碼（`YYYYMMDD`）。編輯生日不會自動更換密碼；按「重設密碼」才會改用目前生日八碼，並使該帳號所有既有登入失效。生日密碼容易被猜到，僅適合這個本機範例。
 
@@ -60,7 +64,7 @@ const name = rawName?.trim();
 const department = rawDepartment?.trim();
 const grade = Number(gradeText);
 
-if (!studentNo || !/^\d{1,30}$/.test(studentNo)) throw new Error("學號須為 1 到 30 位數字");
+if (!studentNo || !/^S\d{8}$/.test(studentNo)) throw new Error("學號須為 S 開頭加 8 位數字");
 if (!name || !department) throw new Error("姓名與系所不可空白");
 if (!birthDate || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate) ||
     Number.isNaN(Date.parse(birthDate)) ||
@@ -89,7 +93,7 @@ try {
 } finally {
   db.close();
 }
-' 11300123 '王小明' 2006-03-21 '資工系' 2
+' S20260999 '王小明' 2006-03-21 '資訊工程學系' 2
 ```
 
 指令沿用網站的 scrypt 雜湊函式及已啟用外鍵約束的資料庫連線，並在同一筆交易寫入 `users`、`students`；學號重複或寫入失敗時會回滾。學生可到 `/login` 用學號及生日去掉連字號後的八位數（例：`20060321`）登入。生日密碼容易被推測，此方式僅供本機測試資料使用。
@@ -99,6 +103,9 @@ try {
 - `/`：首頁與登入狀態
 - `/login`：學生與老師登入頁
 - `/logout`：學生與老師登出，只接受 POST
+- `/query/class-data`：學生與教師查詢示範課程
+- `/course/add`、`/course/drop`、`/course/result`：學生加選、退選與選課結果
+- `/query/my-schedule`：學生週課表；教師端仍顯示建置中
 - `/kpGjBpPZC2/login`：管理員登入頁
 - `/kpGjBpPZC2`：需管理員 session 的後台入口
 - `/kpGjBpPZC2/students`：學生管理
