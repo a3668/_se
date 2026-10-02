@@ -121,3 +121,4 @@ npm start
 ```
 
 SQLite 資料檔已排除版本控制。
+http://localhost:7788/kpGjBpPZC2/login

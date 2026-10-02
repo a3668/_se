@@ -44,7 +44,6 @@ export default function MySchedule({ loaderData }: Route.ComponentProps) {
     <div className="portal-page course-catalog-page">
       <nav aria-label="麵包屑" className="portal-breadcrumb"><Link to="/home">系統首頁</Link><span aria-hidden="true">/</span><span aria-current="page">我的課表</span></nav>
       <header className="course-catalog-heading"><p className="portal-kicker">115-1 Timetable</p><h1>我的課表</h1><p>顯示已選的 115-1 課程。</p></header>
-      <nav className="student-course-tabs" aria-label="選課功能"><Link to="/course/add">加選</Link><Link to="/course/drop">退選</Link><Link to="/course/result">選課結果</Link><Link to="/query/my-schedule" aria-current="page">我的課表</Link></nav>
       {offerings.length ? (
         <TeacherTimetable lessons={lessons} teacherName="我的課表" semester="115-1" title="我的課表" />
       ) : <p className="course-catalog-empty">目前沒有已選課程。<Link to="/course/add">前往加選</Link></p>}
