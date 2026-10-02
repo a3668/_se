@@ -7,11 +7,20 @@ export default [
   route("logout", "routes/logout.ts"),
   layout("routes/portal/layout.tsx", [
     route("home", "routes/home.tsx"),
+    route("query/class-data", "routes/portal/course-catalog.tsx"),
+    route("course/add", "routes/portal/course-add.tsx"),
+    route("course/drop", "routes/portal/course-drop.tsx"),
+    route("course/result", "routes/portal/course-result.tsx"),
+    route("query/my-schedule", "routes/portal/my-schedule.tsx"),
     route(":section/:feature", "routes/portal/feature.tsx"),
   ]),
   route(`${ADMIN_ROUTE_SEGMENT}/login`, "routes/admin/login.tsx"),
   route(`${ADMIN_ROUTE_SEGMENT}/logout`, "routes/admin/logout.ts"),
   route(ADMIN_ROUTE_SEGMENT, "routes/admin/layout.tsx", [
     index("routes/admin/home.tsx"),
+    route(":kind", "routes/admin/accounts.tsx"),
+    route(":kind/new", "routes/admin/account-new.tsx"),
+    route(":kind/:userId", "routes/admin/account-detail.tsx"),
+    route(":kind/:userId/edit", "routes/admin/account-edit.tsx"),
   ]),
 ] satisfies RouteConfig;
