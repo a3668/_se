@@ -656,39 +656,71 @@ a {
   padding-top: 20px;
 }
 
-.admin-schedule-table {
-  min-width: 1000px;
-  table-layout: fixed;
+.admin-schedule-wrapper {
+  overflow-x: auto;
   margin-top: 16px;
 }
 
+.admin-schedule-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  background: #233244;
+}
+
 .admin-schedule-table caption {
-  padding: 12px;
-  text-align: left;
-  color: #c0ccd8;
+  padding: 8px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.admin-schedule-table th,
+.admin-schedule-table td {
+  border: 1px solid #394757;
+  padding: 10px;
+  font-weight: 400;
+}
+
+.admin-schedule-table thead th {
+  height: 40px;
+  text-align: center;
 }
 
 .admin-schedule-table th:first-child {
-  width: 64px;
+  width: 100px;
+}
+
+@media (max-width: 768px) {
+  .admin-schedule-table {
+    min-width: 1100px;
+  }
+}
+
+.admin-schedule-table tbody th {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.admin-schedule-table tbody th span,
+.admin-schedule-lesson span {
+  display: block;
 }
 
 .admin-schedule-table td {
-  height: 64px;
-  padding: 8px;
+  height: 140px;
+  text-align: left;
   vertical-align: top;
-}
-
-.admin-schedule-lesson {
-  display: grid;
-  gap: 4px;
-  border-left: 3px solid #b6d3ed;
-  padding: 8px;
-  background: #30465e;
   overflow-wrap: anywhere;
 }
 
+.admin-schedule-lesson {
+  line-height: 1.5;
+}
+
 .admin-schedule-lesson + .admin-schedule-lesson {
-  margin-top: 8px;
+  margin-top: 12px;
+  border-top: 1px solid #394757;
+  padding-top: 12px;
 }
 
 .admin-account-form label {

@@ -1,10 +1,10 @@
+import { TeacherTimetable } from "../../components/teacher-timetable";
 import { Link } from "react-router";
 import type { Route } from "./+types/my-schedule";
 import { requireUser } from "../../lib/auth.server";
 import { getStudentOfferings } from "../../lib/enrollments.server";
 import type { StudentOffering } from "../../lib/enrollments.server";
 
-const weekdays = ["一", "二", "三", "四", "五", "六", "日"];
 
 export function meta() { return [{ title: "我的課表｜校務資訊系統" }]; }
 
@@ -29,14 +29,16 @@ export default function MySchedule({ loaderData }: Route.ComponentProps) {
   }
 
   const offerings = loaderData.offerings as StudentOffering[];
-  const cells = new Map<string, { offering: StudentOffering; start: number; length: number }>();
-  for (const offering of offerings) {
-    for (const schedule of offering.schedules) {
-      for (let period = schedule.startPeriod; period <= schedule.endPeriod; period++) {
-        cells.set(`${schedule.weekday}-${period}`, { offering, start: schedule.startPeriod, length: schedule.endPeriod - schedule.startPeriod + 1 });
-      }
-    }
-  }
+  const lessons = offerings.flatMap((offering) => offering.schedules.map((schedule) => ({
+    offeringId: offering.id,
+    code: offering.code,
+    name: offering.name,
+    section: offering.section,
+    classroom: schedule.classroom,
+    weekday: schedule.weekday,
+    startPeriod: schedule.startPeriod,
+    endPeriod: schedule.endPeriod,
+  })));
 
   return (
     <div className="portal-page course-catalog-page">
@@ -44,23 +46,7 @@ export default function MySchedule({ loaderData }: Route.ComponentProps) {
       <header className="course-catalog-heading"><p className="portal-kicker">115-1 Timetable</p><h1>我的課表</h1><p>顯示已選的 115-1 課程。</p></header>
       <nav className="student-course-tabs" aria-label="選課功能"><Link to="/course/add">加選</Link><Link to="/course/drop">退選</Link><Link to="/course/result">選課結果</Link><Link to="/query/my-schedule" aria-current="page">我的課表</Link></nav>
       {offerings.length ? (
-        <div className="course-catalog-table-wrap">
-          <table className="student-schedule-table">
-            <thead><tr><th scope="col">節次</th>{weekdays.map((day) => <th scope="col" key={day}>週{day}</th>)}</tr></thead>
-            <tbody>{Array.from({ length: 14 }, (_, index) => index + 1).map((period) => (
-              <tr key={period}><th scope="row">{period}</th>{weekdays.map((_, dayIndex) => {
-                const cell = cells.get(`${dayIndex + 1}-${period}`);
-                if (cell && cell.start < period) return null;
-                return cell ? (
-                  <td key={dayIndex} rowSpan={cell.length} className="is-occupied">
-                    <strong>{cell.offering.name}</strong>
-                    <small>{cell.offering.code} · {cell.offering.section} 班</small>
-                  </td>
-                ) : <td key={dayIndex} />;
-              })}</tr>
-            ))}</tbody>
-          </table>
-        </div>
+        <TeacherTimetable lessons={lessons} teacherName="我的課表" semester="115-1" title="我的課表" />
       ) : <p className="course-catalog-empty">目前沒有已選課程。<Link to="/course/add">前往加選</Link></p>}
       {offerings.some((offering) => offering.schedules.length === 0) ? (
         <section className="student-unscheduled"><h2>尚未排時段的課程</h2><ul>{offerings.filter((offering) => !offering.schedules.length).map((offering) => <li key={offering.id}>{offering.name}（{offering.code}）</li>)}</ul></section>

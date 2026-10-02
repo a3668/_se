@@ -1,3 +1,4 @@
+import { TeacherTimetable } from "../../components/teacher-timetable";
 import { Link } from "react-router";
 import type { Route } from "./+types/account-detail";
 import { requireAdmin } from "../../lib/admin-auth.server";
@@ -50,30 +51,7 @@ export default function AccountDetail({ loaderData }: Route.ComponentProps) {
           <p className="admin-help">{schedule.semester} 學期</p>
           {schedule.lessons.length ? (
             <>
-              <div className="admin-table-wrap">
-                <table className="admin-table admin-schedule-table">
-                  <caption>{account.name} · {schedule.semester} 教師課表</caption>
-                  <thead><tr><th scope="col">節次</th>{["一", "二", "三", "四", "五", "六", "日"].map((day) => <th scope="col" key={day}>週{day}</th>)}</tr></thead>
-                  <tbody>{Array.from({ length: 14 }, (_, index) => index + 1).map((period) => (
-                    <tr key={period}>
-                      <th scope="row">{period}</th>
-                      {Array.from({ length: 7 }, (_, index) => index + 1).map((weekday) => (
-                        <td key={weekday}>
-                          {schedule.lessons.filter((lesson) => lesson.weekday === weekday
-                            && lesson.startPeriod !== null && lesson.endPeriod !== null
-                            && lesson.startPeriod <= period && lesson.endPeriod >= period).map((lesson) => (
-                            <div className="admin-schedule-lesson" key={`${lesson.offeringId}-${lesson.startPeriod}-${lesson.endPeriod}`}>
-                              <strong>{lesson.name}</strong>
-                              <small>{lesson.code} · {lesson.section} 班</small>
-                              <small>{lesson.classroom || "教室未定"}</small>
-                            </div>
-                          ))}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}</tbody>
-                </table>
-              </div>
+              <TeacherTimetable lessons={schedule.lessons} teacherName={account.name} semester={schedule.semester} />
               {schedule.lessons.some((lesson) => lesson.weekday === null) ? (
                 <div>
                   <h3>尚未排時段的課程</h3>
