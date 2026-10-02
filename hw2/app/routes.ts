@@ -18,6 +18,7 @@ export default [
   route(`${ADMIN_ROUTE_SEGMENT}/logout`, "routes/admin/logout.ts"),
   route(ADMIN_ROUTE_SEGMENT, "routes/admin/layout.tsx", [
     index("routes/admin/home.tsx"),
+    route("enrollment-settings", "routes/admin/enrollment-settings.tsx"),
     route(":kind", "routes/admin/accounts.tsx"),
     route(":kind/new", "routes/admin/account-new.tsx"),
     route(":kind/:userId", "routes/admin/account-detail.tsx"),

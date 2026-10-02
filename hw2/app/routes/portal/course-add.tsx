@@ -2,7 +2,8 @@ import { Form, Link, data, redirect } from "react-router";
 import { Pagination } from "../../components/pagination";
 import type { Route } from "./+types/course-add";
 import { requireRole } from "../../lib/auth.server";
-import { addEnrollment, getStudentOfferingDepartments, getStudentOfferingGrades, getStudentOfferings, parseOfferingId } from "../../lib/enrollments.server";
+import { ACTIVE_SEMESTER, addEnrollment, getStudentOfferingDepartments, getStudentOfferingGrades, getStudentOfferings, parseOfferingId } from "../../lib/enrollments.server";
+import { isStudentEnrollmentOpen } from "../../lib/enrollment-settings.server";
 import { StudentCourseList } from "./student-course-list";
 
 const PAGE_SIZE = 20;
@@ -28,6 +29,14 @@ function getPageHref(filters: { department: string; grade: string }, page: numbe
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireRole(request, "student");
+  const enrollmentOpen = isStudentEnrollmentOpen(user.id, ACTIVE_SEMESTER);
+  if (!enrollmentOpen) {
+    return {
+      department: "", grade: "", grades: [] as number[], departments: [] as string[], searched: false,
+      offerings: [], pagination: { currentPage: 1, totalPages: 1, totalItems: 0 },
+      added: false, enrollmentOpen,
+    };
+  }
   const params = new URL(request.url).searchParams;
   const filters = getFilters(request);
   const searched = params.get("search") === "1" || Boolean(filters.department || filters.grade);
@@ -55,6 +64,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     offerings: matchingOfferings.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
     pagination: { currentPage, totalPages, totalItems },
     added: params.has("added"),
+    enrollmentOpen,
   };
 }
 
@@ -75,8 +85,9 @@ export default function CourseAdd({ loaderData, actionData }: Route.ComponentPro
   const { department, grade, grades, departments, pagination, searched } = loaderData;
   return <StudentCourseList
     title="線上加選作業"
-    description="開放 115-1 課程，可跨系、跨年級加選；額滿或時段衝突的課程無法加選。"
+    description="你的年級開放時，可跨系、跨年級加選 115-1 課程；額滿或時段衝突的課程無法加選。"
     mode="add" offerings={loaderData.offerings} error={actionData?.error}
+    enrollmentOpen={loaderData.enrollmentOpen}
     message={loaderData.added ? "加選成功。" : undefined}
     emptyMessage={searched ? "找不到符合條件的課程。" : "請先查詢課程。"}
     searchControls={

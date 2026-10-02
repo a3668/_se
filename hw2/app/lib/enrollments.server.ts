@@ -1,4 +1,5 @@
 import { getDatabase } from "./db.server";
+import { ENROLLMENT_CLOSED_MESSAGE, isStudentEnrollmentOpen } from "./enrollment-settings.server";
 
 export const ACTIVE_SEMESTER = "115-1";
 
@@ -135,6 +136,10 @@ export function addEnrollment(studentUserId: number, offeringId: number): string
   const db = getDatabase();
   db.exec("BEGIN IMMEDIATE");
   try {
+    if (!isStudentEnrollmentOpen(studentUserId, ACTIVE_SEMESTER)) {
+      db.exec("ROLLBACK");
+      return ENROLLMENT_CLOSED_MESSAGE;
+    }
     getStudentDepartment(studentUserId);
     const offering = db.prepare(
       `SELECT o.capacity, o.semester
@@ -182,11 +187,23 @@ export function addEnrollment(studentUserId: number, offeringId: number): string
   }
 }
 
-export function dropEnrollment(studentUserId: number, offeringId: number) {
-  const result = getDatabase().prepare(
-    `DELETE FROM enrollments
-     WHERE student_user_id = ? AND offering_id = ?
-       AND offering_id IN (SELECT id FROM course_offerings WHERE semester = ?)`,
-  ).run(studentUserId, offeringId, ACTIVE_SEMESTER);
-  return result.changes > 0;
+export function dropEnrollment(studentUserId: number, offeringId: number): string | null {
+  const db = getDatabase();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    if (!isStudentEnrollmentOpen(studentUserId, ACTIVE_SEMESTER)) {
+      db.exec("ROLLBACK");
+      return ENROLLMENT_CLOSED_MESSAGE;
+    }
+    const result = db.prepare(
+      `DELETE FROM enrollments
+       WHERE student_user_id = ? AND offering_id = ?
+         AND offering_id IN (SELECT id FROM course_offerings WHERE semester = ?)`,
+    ).run(studentUserId, offeringId, ACTIVE_SEMESTER);
+    db.exec("COMMIT");
+    return result.changes > 0 ? null : "這門課不在你的已選課程中。";
+  } catch (error) {
+    if (db.isTransaction) db.exec("ROLLBACK");
+    throw error;
+  }
 }

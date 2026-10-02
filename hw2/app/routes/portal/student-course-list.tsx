@@ -20,9 +20,17 @@ type Props = {
   searchControls?: ReactNode;
   paginationControls?: ReactNode;
   emptyMessage?: string;
+  enrollmentOpen?: boolean;
 };
 
-export function StudentCourseList({ title, description, offerings, mode, error, message, searchControls, paginationControls, emptyMessage }: Props) {
+export function StudentCourseList({ title, description, offerings, mode, error, message, searchControls, paginationControls, emptyMessage, enrollmentOpen = false }: Props) {
+  if (mode !== "result" && !enrollmentOpen) {
+    return (
+      <div className="portal-page course-catalog-page">
+        <p className="student-course-message" role="status">目前未開放加退選時間</p>
+      </div>
+    );
+  }
   return (
     <div className="portal-page course-catalog-page">
       <nav aria-label="麵包屑" className="portal-breadcrumb">
@@ -54,9 +62,9 @@ export function StudentCourseList({ title, description, offerings, mode, error, 
                   <td>{offering.teacherName}{formatSchedules(offering).map((schedule) => <small key={schedule}>{schedule}</small>)}</td>
                   <td>{offering.enrolledCount} / {offering.capacity}</td>
                   <td>{mode === "add" && !offering.selected && status === "可加選" ? (
-                    <Form method="post"><input type="hidden" name="offeringId" value={offering.id} /><button className="student-course-button" type="submit">加選</button></Form>
+                    <Form method="post"><input type="hidden" name="offeringId" value={offering.id} /><button className="student-course-button" type="submit" disabled={!enrollmentOpen}>加選</button></Form>
                   ) : mode === "drop" ? (
-                    <Form method="post"><input type="hidden" name="offeringId" value={offering.id} /><button className="student-course-button" type="submit">退選</button></Form>
+                    <Form method="post"><input type="hidden" name="offeringId" value={offering.id} /><button className="student-course-button" type="submit" disabled={!enrollmentOpen}>退選</button></Form>
                   ) : <span>{status}</span>}</td>
                 </tr>
               );

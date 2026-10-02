@@ -4,3 +4,4 @@ export const ADMIN_LOGIN_PATH = `${ADMIN_BASE_PATH}/login`;
 export const ADMIN_LOGOUT_PATH = `${ADMIN_BASE_PATH}/logout`;
 export const ADMIN_STUDENTS_PATH = `${ADMIN_BASE_PATH}/students`;
 export const ADMIN_TEACHERS_PATH = `${ADMIN_BASE_PATH}/teachers`;
+export const ADMIN_ENROLLMENT_SETTINGS_PATH = `${ADMIN_BASE_PATH}/enrollment-settings`;

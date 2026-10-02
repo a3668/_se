@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Form, Link } from "react-router";
+import { Form } from "react-router";
 import { ADMIN_BASE_PATH, ADMIN_LOGOUT_PATH } from "../lib/admin-paths";
 
 export function AdminShell({ children, username }: { children: ReactNode; username?: string }) {
@@ -7,9 +7,9 @@ export function AdminShell({ children, username }: { children: ReactNode; userna
     <div className="site-layout admin-layout">
       <header className="site-header">
         <div className="shell header-inner">
-          <Link className="brand" to={`${ADMIN_BASE_PATH}/`} reloadDocument aria-label="管理後台首頁">
+          <a className="brand" href={`${ADMIN_BASE_PATH}/`} aria-label="管理後台首頁">
             HW2<span>管理後台</span>
-          </Link>
+          </a>
           <nav className="session-nav" aria-label="管理員功能">
             {username ? (
               <>
