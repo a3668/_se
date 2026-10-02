@@ -1,0 +1,17 @@
+node_modules/
+!app/lib/
+build/
+.react-router/
+.env
+.dev.vars
+data/*.sqlite
+data/*.sqlite-*
+data/*.db
+data/*.db-*
+# dotenv environment variable files
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
+.dev.vars*
+!.dev.vars.example

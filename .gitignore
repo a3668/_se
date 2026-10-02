@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# dotenv environment variable files
+.env.development.local
+.env
+.env.test.local
+.env.production.local
+.env.local
+.dev.vars*
+!.dev.vars.example
