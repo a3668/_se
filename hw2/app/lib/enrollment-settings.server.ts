@@ -21,16 +21,24 @@ export function isStudentEnrollmentOpen(studentUserId: number, semester: string)
   return Boolean(student.is_open);
 }
 
-export function saveEnrollmentOpenGrades(semester: string, values: FormDataEntryValue[]): string | null {
-  if (values.some((value) => typeof value !== "string" || !/^[1-9]\d*$/.test(value)
+export function saveEnrollmentOpenGrades(semester: string, mode: FormDataEntryValue | null, values: FormDataEntryValue[]): string | null {
+  if (mode !== "closed" && mode !== "all" && mode !== "selected") {
+    return "請選擇有效的開放方式。";
+  }
+  if (mode === "selected" && values.length === 0) return "請至少選擇一個年級。";
+  if (mode === "selected" && values.some((value) => typeof value !== "string" || !/^[1-9]\d*$/.test(value)
     || !Number.isSafeInteger(Number(value)))) {
     return "請選擇有效的學生年級。";
   }
-  const selectedGrades = [...new Set(values.map(Number))];
   const db = getDatabase();
   db.exec("BEGIN IMMEDIATE");
   try {
     const { grades } = getEnrollmentSettings(semester);
+    const selectedGrades = mode === "all" ? grades : mode === "closed" ? [] : [...new Set(values.map(Number))];
+    if (mode === "all" && !grades.length) {
+      db.exec("ROLLBACK");
+      return "目前沒有學生年級資料，無法開放全年級。";
+    }
     if (selectedGrades.some((grade) => !grades.includes(grade))) {
       db.exec("ROLLBACK");
       return "學生年級資料已變更，請重新載入後再儲存。";
