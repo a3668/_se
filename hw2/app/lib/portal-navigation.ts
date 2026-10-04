@@ -13,6 +13,20 @@ export type PortalNavigationGroup = {
 
 export const PORTAL_NAVIGATION: PortalNavigationGroup[] = [
   {
+    label: "教師作業",
+    items: [
+      { label: "我的授課課程", path: "/teacher/courses", roles: ["teacher"] },
+      { label: "修課學生名單", path: "/teacher/roster", roles: ["teacher"] },
+      { label: "成績登錄", path: "/teacher/grades", roles: ["teacher"] },
+      { label: "期中預警登錄", path: "/teacher/alerts", roles: ["teacher"] },
+      { label: "缺曠登錄", path: "/teacher/attendance", roles: ["teacher"] },
+      { label: "獎懲登錄", path: "/teacher/discipline", roles: ["teacher"] },
+      { label: "學生申請審核", path: "/teacher/applications", roles: ["teacher"] },
+      { label: "教學評量統計", path: "/teacher/evaluations", roles: ["teacher"] },
+      { label: "課程問卷管理", path: "/teacher/questionnaires", roles: ["teacher"] },
+    ],
+  },
+  {
     label: "選課作業",
     items: [
       { label: "線上加選作業", path: "/course/add", roles: ["student"] },
@@ -47,13 +61,13 @@ export const PORTAL_NAVIGATION: PortalNavigationGroup[] = [
     label: "登錄",
     items: [
       { label: "教學評量登錄", path: "/entry/teaching-evaluation", roles: ["student"] },
-      { label: "問卷調查", path: "/entry/questionnaire", roles: [] },
+      { label: "問卷調查", path: "/entry/questionnaire", roles: ["student"] },
     ],
   },
 ];
 
 const portalItems = PORTAL_NAVIGATION.flatMap((group) => group.items);
-const portalPrefixes = ["/course/", "/query/", "/student/", "/entry/"];
+const portalPrefixes = ["/course/", "/query/", "/student/", "/entry/", "/teacher/"];
 
 export function getPortalNavigationItem(pathname: string) {
   return portalItems.find((item) => item.path === pathname) ?? null;

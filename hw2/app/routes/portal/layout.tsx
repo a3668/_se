@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Form, Link, NavLink, Outlet, useLocation } from "react-router";
 import type { Route } from "./+types/layout";
 import { requireUser } from "../../lib/auth.server";
@@ -15,6 +15,8 @@ const roleLabels = {
 
 export default function PortalLayout({ loaderData }: Route.ComponentProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -22,31 +24,47 @@ export default function PortalLayout({ loaderData }: Route.ComponentProps) {
   }, [location.pathname]);
 
   useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 900px)");
+    const closeOnDesktop = () => { if (!mobile.matches) setMenuOpen(false); };
+    mobile.addEventListener("change", closeOnDesktop);
+    return () => mobile.removeEventListener("change", closeOnDesktop);
+  }, []);
+
+  useEffect(() => {
     if (!menuOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setMenuOpen(false);
+      if (event.key !== "Tab") return;
+      const controls = sidebarRef.current?.querySelectorAll<HTMLElement>("a[href], button:not([disabled])");
+      const first = controls?.[0];
+      const last = controls?.[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     };
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeyDown);
+    sidebarRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
 
     return () => {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
+      menuButtonRef.current?.focus();
     };
   }, [menuOpen]);
 
   return (
     <div className="portal-layout">
-      <header className="portal-header">
+      <header className="portal-header" inert={menuOpen}>
         <div className="portal-brand-group">
           <button
             aria-controls="portal-navigation"
             aria-expanded={menuOpen}
             aria-label="開啟功能選單"
             className="portal-menu-button"
+            ref={menuButtonRef}
             onClick={() => setMenuOpen(true)}
             type="button"
           >
@@ -80,8 +98,13 @@ export default function PortalLayout({ loaderData }: Route.ComponentProps) {
           className={`portal-overlay${menuOpen ? " is-visible" : ""}`}
           onClick={() => setMenuOpen(false)}
           type="button"
+          tabIndex={-1}
         />
         <aside
+          ref={sidebarRef}
+          role={menuOpen ? "dialog" : undefined}
+          aria-modal={menuOpen ? true : undefined}
+          aria-label={menuOpen ? "功能選單" : undefined}
           className={`portal-sidebar${menuOpen ? " is-open" : ""}`}
           id="portal-navigation"
         >
@@ -112,7 +135,7 @@ export default function PortalLayout({ loaderData }: Route.ComponentProps) {
           </nav>
         </aside>
 
-        <main className="portal-content">
+        <main className="portal-content" inert={menuOpen}>
           <Outlet />
         </main>
       </div>

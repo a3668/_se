@@ -95,7 +95,7 @@ export default function App() {
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const status = isRouteErrorResponse(error) ? error.status : 500;
-  const message = status === 404 ? "找不到這個頁面。" : "網站暫時無法處理此要求。";
+  const message = status === 404 ? "找不到這個頁面。" : status === 403 ? "你沒有此功能的存取權限。" : status === 400 ? "查詢條件或資料格式無效。" : "網站暫時無法處理此要求。";
 
   return (
     <main className="error-page shell">

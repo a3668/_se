@@ -2,7 +2,8 @@ import { Form, Link } from "react-router";
 import type { Route } from "./+types/course-catalog";
 import { requireRole } from "../../lib/auth.server";
 import { getDatabase } from "../../lib/db.server";
-import { ACTIVE_SEMESTER, getStudentOfferingDepartments, getStudentOfferingGrades } from "../../lib/enrollments.server";
+import { getSemesterFilter, getStudentOfferingDepartments, getStudentOfferingGrades } from "../../lib/enrollments.server";
+import { Pagination } from "../../components/pagination";
 
 type CourseRow = {
   offering_id: number;
@@ -25,8 +26,9 @@ const weekdays = ["", "一", "二", "三", "四", "五", "六", "日"];
 export async function loader({ request }: Route.LoaderArgs) {
   await requireRole(request, "student", "teacher");
   const db = getDatabase();
-  const departmentOptions = getStudentOfferingDepartments();
-  const gradeOptions = getStudentOfferingGrades();
+  const { semester, semesters } = getSemesterFilter(request);
+  const departmentOptions = getStudentOfferingDepartments(semester);
+  const gradeOptions = getStudentOfferingGrades(semester);
   const params = new URL(request.url).searchParams;
   const department = params.get("department")?.trim().slice(0, 100) ?? "";
   const grade = params.get("grade")?.trim().slice(0, 100) ?? "";
@@ -51,7 +53,7 @@ export async function loader({ request }: Route.LoaderArgs) {
        AND (? = '' OR courses.grade = ?)
      ORDER BY courses.grade, courses.course_code, course_offerings.section,
               course_schedules.weekday, course_schedules.start_period`,
-  ).all(ACTIVE_SEMESTER, department, department, grade, grade) as CourseRow[] : [];
+  ).all(semester, department, department, grade, grade) as CourseRow[] : [];
 
   const courses: Array<Omit<CourseRow, "weekday" | "start_period" | "end_period" | "classroom"> & { schedules: string[] }> = [];
   for (const row of rows) {
@@ -70,7 +72,13 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  return { semester: ACTIVE_SEMESTER, department, grade, grades: gradeOptions, departments: departmentOptions, courses, searched };
+  const totalItems = courses.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / 20));
+  const page = Number(params.get("page"));
+  const currentPage = Number.isSafeInteger(page) && page > 0 ? Math.min(page, totalPages) : 1;
+  return { semester, semesters, department, grade, grades: gradeOptions, departments: departmentOptions,
+    courses: courses.slice((currentPage - 1) * 20, currentPage * 20), searched,
+    pagination: { totalItems, totalPages, currentPage } };
 }
 
 export function meta() {
@@ -78,7 +86,14 @@ export function meta() {
 }
 
 export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
-  const { semester, department, grade, grades, departments, courses, searched } = loaderData;
+  const { semester, semesters, department, grade, grades, departments, courses, searched, pagination } = loaderData;
+  const pageHref = (page: number) => {
+    const params = new URLSearchParams({ search: "1", semester });
+    if (department) params.set("department", department);
+    if (grade) params.set("grade", grade);
+    if (page > 1) params.set("page", String(page));
+    return `/query/class-data?${params}`;
+  };
   return (
     <div className="portal-page course-catalog-page">
       <nav aria-label="麵包屑" className="portal-breadcrumb">
@@ -91,8 +106,9 @@ export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
         <h1>課程資料查詢</h1>
         <p>以下為 {semester} 示範開課資料，非來源學校的正式課表。</p>
       </header>
-      <Form key={JSON.stringify([department, grade])} className="course-catalog-filters" method="get" action="/query/class-data">
+      <Form key={JSON.stringify([semester, department, grade])} className="course-catalog-filters" method="get" action="/query/class-data">
         <input type="hidden" name="search" value="1" />
+        <label>學期<select name="semester" defaultValue={semester}>{semesters.map((s) => <option key={s}>{s}</option>)}</select></label>
         <label>科系
           <select name="department" defaultValue={department}>
             <option value="">全部科系</option>
@@ -128,6 +144,7 @@ export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
           </table>
         </div>
       ) : <p className="course-catalog-empty">{searched ? "此學期沒有符合條件的開課資料。" : "請先查詢課程。"}</p>}
+      {searched ? <><p className="admin-pagination-summary">共 {pagination.totalItems} 筆，第 {pagination.currentPage} / {pagination.totalPages} 頁</p><Pagination {...pagination} label="課程查詢分頁" getPageHref={pageHref} /></> : null}
     </div>
   );
 }
