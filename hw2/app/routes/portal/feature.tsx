@@ -54,15 +54,17 @@ export function meta({ data }: Route.MetaArgs) {
   return [{ title: data ? `${data.item.label}｜校務資訊系統` : "校務資訊系統" }];
 }
 
-function Editor({ title, intent, children }: { title: string; intent: string; children: ReactNode }) {
+function Editor({ title, intent, children, submitLabel = "儲存／送出" }: { title: string; intent: string; children: ReactNode; submitLabel?: string }) {
   const busy = useNavigation().state !== "idle";
   return <Form method="post" className="academic-editor"><fieldset disabled={busy}><legend>{title}</legend>
-    {children}<button className="student-course-button" type="submit" name="intent" value={intent}>{busy ? "處理中…" : "儲存／送出"}</button>
+    {children}<button className="student-course-button" type="submit" name="intent" value={intent}>{busy ? "處理中…" : submitLabel}</button>
   </fieldset></Form>;
 }
 
 export default function PortalFeature({ loaderData: d, actionData }: Route.ComponentProps) {
   const path = d.item.path;
+  const applicationClosed = (path === "/course/withdraw" && !d.withdrawalOpen)
+    || (path === "/course/general" && !d.generalSelectionOpen);
   const allHistory = ["/query/history-grades", "/student/reward-punishment", "/teacher/discipline"].includes(path);
   const teacher = d.role === "teacher";
   const active = d.semester === d.activeSemester;
@@ -83,8 +85,11 @@ export default function PortalFeature({ loaderData: d, actionData }: Route.Compo
 
   return <div className="portal-page course-catalog-page">
     <nav aria-label="麵包屑" className="portal-breadcrumb"><Link to="/home">系統首頁</Link><span aria-hidden="true">/</span><span aria-current="page">{d.item.label}</span></nav>
-    <header className="course-catalog-heading"><p className="portal-kicker">{allHistory ? "歷年資料" : d.semester} · {teacher ? "Teacher" : "Student"}</p><h1>{d.item.label}</h1>{d.note ? <p>{d.note}</p> : null}</header>
-    {actionData?.error ? <p className="student-course-message is-error" role="alert">{actionData.error}</p> : d.saved ? <p className="student-course-message" role="status">資料已儲存。</p> : null}
+    <header className="course-catalog-heading"><p className="portal-kicker">{allHistory ? "歷年資料" : d.semester} · {teacher ? "Teacher" : "Student"}</p><h1>{d.item.label}</h1>{d.note && !applicationClosed ? <p>{d.note}</p> : null}</header>
+    {!applicationClosed && (actionData?.error ? <p className="student-course-message is-error" role="alert">{actionData.error}</p> : d.saved ? <p className="student-course-message" role="status">{path === "/course/withdraw" ? "停修已完成，已移除選課並留下停修紀錄。" : "資料已儲存。"}</p> : null)}
+    {path === "/course/withdraw" ? <p className="student-course-message">目前狀態：{d.withdrawalOpen ? "全校開放停修申請" : "全校關閉停修申請"}</p> : null}
+    {path === "/course/general" ? <p className="student-course-message">目前狀態：{d.generalSelectionOpen ? "全校開放通識初選" : "全校關閉通識初選"}</p> : null}
+    {!applicationClosed ? <>
     {!allHistory ? <Form key={`${path}-${d.semester}-${d.offeringId}-${d.teacherId}-${d.classroom}`} method="get" className="course-catalog-filters">
       <label>學期<select name="semester" defaultValue={d.semester}>{d.semesters.map((s) => <option key={s}>{s}</option>)}</select></label>
       {scopedCourse ? <label>授課課程<select name="offeringId" defaultValue={String(d.offeringId || "")}><option value="">{d.courses.length ? "請選擇課程" : "目前沒有授課課程"}</option>{courseOptions}</select></label> : null}
@@ -100,7 +105,7 @@ export default function PortalFeature({ loaderData: d, actionData }: Route.Compo
       {active && path === "/teacher/alerts" && d.students.length ? <Form method="post" className="academic-editor"><fieldset disabled={busy}><legend>期中預警</legend>{selectedCourse}{studentField}<label>預警原因<textarea name="reason" maxLength={1000} defaultValue={field("reason")} rows={3} /></label><button className="student-course-button" name="intent" value="alert">儲存預警</button><button className="academic-secondary" name="intent" value="clear-alert">解除預警</button></fieldset></Form> : null}
       {active && path === "/teacher/attendance" && d.students.length ? <Editor title="登錄／更正出缺勤" intent="attendance">{selectedCourse}{studentField}{dateField}<label>節次<input type="number" name="period" min={1} max={14} defaultValue={field("period")} required /></label><label>狀態<select name="status" defaultValue={field("status", "absent")}><option value="absent">缺課</option><option value="late">遲到</option><option value="leave">請假</option><option value="present">出席（清除該節紀錄）</option></select></label><label>備註<textarea name="note" maxLength={1000} defaultValue={field("note")} rows={2} /></label></Editor> : null}
       {path === "/teacher/discipline" && d.students.length ? <Editor title="獎懲登錄" intent="discipline">{studentField}{dateField}<label>類型<select name="kind" defaultValue={field("kind", "reward")}><option value="reward">獎勵</option><option value="punishment">懲處</option></select></label>{reason}</Editor> : null}
-      {active && application && (path === "/student/military-service" || d.courses.length > 0) ? <Editor title="新增申請" intent="apply">{path !== "/student/military-service" ? courseField : null}{reason}</Editor> : null}
+      {active && application && (path !== "/course/withdraw" || d.withdrawalOpen) && (path === "/student/military-service" || d.courses.length > 0) ? <Editor title={path === "/course/withdraw" ? "申請停修" : "新增申請"} intent="apply" submitLabel={path === "/course/withdraw" ? "送出停修（立即生效）" : undefined}>{path !== "/student/military-service" ? courseField : null}{reason}</Editor> : null}
       {active && path === "/entry/teaching-evaluation" && d.courses.length ? <Editor title="填寫／更新教學評量" intent="evaluation">{courseField}<label>整體評分<select name="rating" defaultValue={field("rating", "5")}>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n} · {n === 1 ? "非常不滿意" : n === 5 ? "非常滿意" : n === 3 ? "普通" : n === 2 ? "不滿意" : "滿意"}</option>)}</select></label><label>評論（選填）<textarea name="comment" maxLength={1000} defaultValue={field("comment")} rows={3} /></label></Editor> : null}
       {active && path === "/teacher/questionnaires" && d.courses.length ? <Editor title="發布課程問卷" intent="questionnaire">{courseField}<label>問卷名稱<input name="title" maxLength={100} defaultValue={field("title")} required /></label><label>問題<textarea name="question" maxLength={1000} defaultValue={field("question")} rows={3} required /></label></Editor> : null}
     </div>
@@ -123,6 +128,7 @@ export default function PortalFeature({ loaderData: d, actionData }: Route.Compo
       {teacher ? (active ? <Form method="post"><input type="hidden" name="questionnaireId" value={q.id} /><input type="hidden" name="isOpen" value={q.isOpen ? "0" : "1"} /><button className="academic-secondary" name="intent" value="toggle-questionnaire" disabled={busy}>{q.isOpen ? "關閉問卷" : "重新開放"}</button></Form> : null)
         : q.isOpen && active ? <Form method="post"><input type="hidden" name="questionnaireId" value={q.id} /><label>你的回答<textarea key={`${q.answer}-${failed.questionnaireId === String(q.id) ? field("answer") : ""}`} name="answer" maxLength={1000} required rows={3} defaultValue={failed.questionnaireId === String(q.id) ? field("answer") : q.answer} /></label><button className="student-course-button" name="intent" value="response" disabled={busy}>{q.answer ? "更新回答" : "送出回答"}</button></Form> : <p>你的回答：{q.answer || "尚未填寫"}</p>}
     </article>) : <p className="course-catalog-empty">目前沒有課程問卷。</p>}</section> : null}
+    </> : null}
     <Link className="portal-back-link" to="/home">返回系統首頁</Link>
   </div>;
 }

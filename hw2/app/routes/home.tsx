@@ -25,7 +25,7 @@ const teacherQuickLinks = [
   { label: "我的課表", path: "/query/my-schedule", description: "查看本學期授課時段" },
   { label: "修課名單", path: "/teacher/roster", description: "查看自己授課的學生" },
   { label: "成績登錄", path: "/teacher/grades", description: "儲存草稿或公布成績" },
-  { label: "申請審核", path: "/teacher/applications", description: "處理停修、初選與兵役申請" },
+  { label: "申請審核", path: "/teacher/applications", description: "處理初選與兵役申請" },
 ];
 
 const roleLabels = {

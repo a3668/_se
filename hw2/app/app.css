@@ -392,20 +392,12 @@ a {
 }
 
 .admin-nav a,
-.admin-home-links a,
 .admin-actions a,
 .admin-search a,
 .admin-table a {
   color: #18231d;
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.admin-home-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  margin-top: 36px;
 }
 
 .admin-main {
