@@ -21,6 +21,8 @@ export default [
     route("enrollment-settings", "routes/admin/enrollment-settings.tsx"),
     route("withdrawal-settings", "routes/admin/withdrawal-settings.tsx"),
     route("general-selection-settings", "routes/admin/general-selection-settings.tsx"),
+    route("midterm-alert-settings", "routes/admin/midterm-alert-settings.tsx"),
+    route("semester-grade-settings", "routes/admin/semester-grade-settings.tsx"),
     route(":kind", "routes/admin/accounts.tsx"),
     route(":kind/new", "routes/admin/account-new.tsx"),
     route(":kind/:userId", "routes/admin/account-detail.tsx"),

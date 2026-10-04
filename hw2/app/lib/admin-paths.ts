@@ -7,3 +7,5 @@ export const ADMIN_TEACHERS_PATH = `${ADMIN_BASE_PATH}/teachers`;
 export const ADMIN_ENROLLMENT_SETTINGS_PATH = `${ADMIN_BASE_PATH}/enrollment-settings`;
 export const ADMIN_WITHDRAWAL_SETTINGS_PATH = `${ADMIN_BASE_PATH}/withdrawal-settings`;
 export const ADMIN_GENERAL_SELECTION_SETTINGS_PATH = `${ADMIN_BASE_PATH}/general-selection-settings`;
+export const ADMIN_MIDTERM_ALERT_SETTINGS_PATH = `${ADMIN_BASE_PATH}/midterm-alert-settings`;
+export const ADMIN_SEMESTER_GRADE_SETTINGS_PATH = `${ADMIN_BASE_PATH}/semester-grade-settings`;

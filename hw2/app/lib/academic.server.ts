@@ -3,6 +3,8 @@ import { getDatabase } from "./db.server";
 import { ACTIVE_SEMESTER, addEnrollment, getSemesterOptions } from "./enrollments.server";
 import { isWithdrawalOpen, WITHDRAWAL_CLOSED_MESSAGE } from "./withdrawal-settings.server";
 import { isGeneralSelectionOpen, GENERAL_SELECTION_CLOSED_MESSAGE } from "./general-selection-settings.server";
+import { isMidtermAlertOpen, MIDTERM_ALERT_CLOSED_MESSAGE } from "./midterm-alert-settings.server";
+import { isSemesterGradeOpen } from "./semester-grade-settings.server";
 
 type SqlValue = string | number | null;
 function rows<T>(sql: string, ...args: SqlValue[]): T[] {
@@ -33,6 +35,8 @@ export type AcademicData = {
   summary: { label: string; value: string }[];
   withdrawalOpen?: boolean;
   generalSelectionOpen?: boolean;
+  midtermAlertOpen?: boolean;
+  semesterGradeOpen?: boolean;
 };
 
 const courseSelect = `SELECT o.id, c.course_code AS code, c.name, o.section, o.semester,
@@ -57,10 +61,19 @@ export function getAcademicData(user: CurrentUser, path: string, params: URLSear
   const semester = params.get("semester") || ACTIVE_SEMESTER;
   if (!semesters.includes(semester)) throw new Response("學期無效", { status: 400 });
   const teacher = user.role === "teacher";
+  const value: AcademicData = { semester, semesters, courses: [], students: [], offeringId: null, columns: [], records: [], surveys: [], teachers: [], teacherId: null, classrooms: [], classroom: "", lessons: [], note: "", summary: [] };
+  if (path === "/query/semester-grades" || path === "/query/history-grades") {
+    value.semesterGradeOpen = isSemesterGradeOpen(ACTIVE_SEMESTER);
+    if (path === "/query/semester-grades" && !value.semesterGradeOpen) return value;
+  }
+  if (path === "/teacher/alerts" || path === "/query/midterm-alert") {
+    value.midtermAlertOpen = isMidtermAlertOpen(ACTIVE_SEMESTER);
+    if (!value.midtermAlertOpen) return value;
+  }
   const courses = teacher
     ? rows<AcademicCourse>(`${courseSelect} WHERE o.teacher_user_id = ? AND o.semester = ? ORDER BY c.course_code, o.section`, user.id, semester)
     : rows<AcademicCourse>(`${courseSelect} JOIN enrollments e ON e.offering_id = o.id WHERE e.student_user_id = ? AND o.semester = ? ORDER BY c.course_code, o.section`, user.id, semester);
-  const value: AcademicData = { semester, semesters, courses, students: [], offeringId: null, columns: [], records: [], surveys: [], teachers: [], teacherId: null, classrooms: [], classroom: "", lessons: [], note: "", summary: [] };
+  value.courses = courses;
   const courseInput = params.get("offeringId");
   if (teacher && path.startsWith("/teacher/")) {
     if (courseInput) {
@@ -88,6 +101,7 @@ export function getAcademicData(user: CurrentUser, path: string, params: URLSear
     value.note = "僅能查看自己授課課程的修課名單。";
   }
   if (path.includes("grades")) {
+    const hideCurrentHistory = !teacher && path === "/query/history-grades" && !value.semesterGradeOpen;
     value.columns = teacher ? ["學號", "姓名", "課程", "學分", "成績", "狀態"] : ["學期", "課程", "學分", "成績", "結果"];
     const grades = rows<{ id: number; username: string; studentName: string; name: string; credits: number; score: number; semester: string; published: number }>(
       `SELECT g.student_user_id AS id, u.username, s.name AS studentName, c.name, c.credits, g.score, o.semester, g.published
@@ -95,19 +109,22 @@ export function getAcademicData(user: CurrentUser, path: string, params: URLSear
        JOIN course_offerings o ON o.id = g.offering_id JOIN courses c ON c.id = o.course_id
        WHERE ${teacher ? "o.teacher_user_id = ? AND o.id = ?" : "g.student_user_id = ? AND g.published = 1"}
        ${!teacher && path !== "/query/history-grades" ? "AND o.semester = ?" : ""}
+       ${hideCurrentHistory ? "AND o.semester != ?" : ""}
        ORDER BY o.semester DESC, c.course_code, u.username`,
-      user.id, ...(teacher ? [offeringId] : path === "/query/history-grades" ? [] : [semester]));
+      user.id, ...(teacher ? [offeringId] : path === "/query/history-grades" ? [] : [semester]), ...(hideCurrentHistory ? [ACTIVE_SEMESTER] : []));
     value.records = grades.map((g, i) => ({ id: i, cells: teacher ? [g.username, g.studentName, g.name, String(g.credits), String(g.score), g.published ? "已公布" : "草稿"] : [g.semester, g.name, String(g.credits), String(g.score), g.score >= 60 ? "及格" : "不及格"] }));
     const published = grades.filter((g) => g.published);
     const credits = published.reduce((n, g) => n + g.credits, 0);
     value.summary = [{ label: "已公布門數", value: String(published.length) }, { label: "取得學分", value: String(published.filter((g) => g.score >= 60).reduce((n, g) => n + g.credits, 0)) }, { label: "學分加權平均", value: credits ? (published.reduce((n, g) => n + g.credits * g.score, 0) / credits).toFixed(2) : "—" }];
     value.note = "採百分制，60 分及格。學生僅能看見已公布的成績；停修不計入平均與學分。";
+    if (hideCurrentHistory) value.note += ` ${ACTIVE_SEMESTER} 學期成績查詢尚未開放，此處僅顯示其他學期資料。`;
     if (!teacher) {
       const withdrawals = rows<{ id: number; semester: string; name: string; credits: number }>(
         `SELECT a.id, a.semester, c.name, c.credits FROM student_applications a
          JOIN course_offerings o ON o.id = a.offering_id JOIN courses c ON c.id = o.course_id
          WHERE a.student_user_id = ? AND a.kind = 'withdraw' AND a.status = 'approved'
-         ${path !== "/query/history-grades" ? "AND a.semester = ?" : ""} ORDER BY a.semester DESC`, user.id, ...(path !== "/query/history-grades" ? [semester] : []));
+         ${path !== "/query/history-grades" ? "AND a.semester = ?" : ""}
+         ${hideCurrentHistory ? "AND a.semester != ?" : ""} ORDER BY a.semester DESC`, user.id, ...(path !== "/query/history-grades" ? [semester] : []), ...(hideCurrentHistory ? [ACTIVE_SEMESTER] : []));
       for (const w of withdrawals) value.records.push({ id: grades.length + w.id, cells: [w.semester, w.name, String(w.credits), "—", "停修"] });
     }
   }
@@ -297,6 +314,7 @@ export function saveAcademicAction(user: CurrentUser, path: string, form: FormDa
         run(`INSERT INTO academic_grades VALUES (?, ?, ?, ?, ?) ON CONFLICT(student_user_id, offering_id)
           DO UPDATE SET score = excluded.score, published = excluded.published, updated_at = excluded.updated_at`, studentId, offeringId, score, published, now);
       } else if (path === "/teacher/alerts" && ["alert", "clear-alert"].includes(intent)) {
+        if (!isMidtermAlertOpen(ACTIVE_SEMESTER)) throw new InputError(MIDTERM_ALERT_CLOSED_MESSAGE);
         if (intent === "clear-alert") run("DELETE FROM midterm_alerts WHERE student_user_id = ? AND offering_id = ?", studentId, offeringId);
         else run(`INSERT INTO midterm_alerts VALUES (?, ?, ?, ?) ON CONFLICT(student_user_id, offering_id)
           DO UPDATE SET reason = excluded.reason, updated_at = excluded.updated_at`, studentId, offeringId, textField(form, "reason"), now);

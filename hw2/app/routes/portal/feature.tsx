@@ -63,8 +63,11 @@ function Editor({ title, intent, children, submitLabel = "儲存／送出" }: { 
 
 export default function PortalFeature({ loaderData: d, actionData }: Route.ComponentProps) {
   const path = d.item.path;
-  const applicationClosed = (path === "/course/withdraw" && !d.withdrawalOpen)
-    || (path === "/course/general" && !d.generalSelectionOpen);
+  const midtermAlert = path === "/teacher/alerts" || path === "/query/midterm-alert";
+  const featureClosed = (path === "/course/withdraw" && !d.withdrawalOpen)
+    || (path === "/course/general" && !d.generalSelectionOpen)
+    || (midtermAlert && !d.midtermAlertOpen)
+    || (path === "/query/semester-grades" && !d.semesterGradeOpen);
   const allHistory = ["/query/history-grades", "/student/reward-punishment", "/teacher/discipline"].includes(path);
   const teacher = d.role === "teacher";
   const active = d.semester === d.activeSemester;
@@ -85,11 +88,13 @@ export default function PortalFeature({ loaderData: d, actionData }: Route.Compo
 
   return <div className="portal-page course-catalog-page">
     <nav aria-label="麵包屑" className="portal-breadcrumb"><Link to="/home">系統首頁</Link><span aria-hidden="true">/</span><span aria-current="page">{d.item.label}</span></nav>
-    <header className="course-catalog-heading"><p className="portal-kicker">{allHistory ? "歷年資料" : d.semester} · {teacher ? "Teacher" : "Student"}</p><h1>{d.item.label}</h1>{d.note && !applicationClosed ? <p>{d.note}</p> : null}</header>
-    {!applicationClosed && (actionData?.error ? <p className="student-course-message is-error" role="alert">{actionData.error}</p> : d.saved ? <p className="student-course-message" role="status">{path === "/course/withdraw" ? "停修已完成，已移除選課並留下停修紀錄。" : "資料已儲存。"}</p> : null)}
+    <header className="course-catalog-heading"><p className="portal-kicker">{allHistory ? "歷年資料" : d.semester} · {teacher ? "Teacher" : "Student"}</p><h1>{d.item.label}</h1>{d.note && !featureClosed ? <p>{d.note}</p> : null}</header>
+    {!featureClosed && (actionData?.error ? <p className="student-course-message is-error" role="alert">{actionData.error}</p> : d.saved ? <p className="student-course-message" role="status">{path === "/course/withdraw" ? "停修已完成，已移除選課並留下停修紀錄。" : "資料已儲存。"}</p> : null)}
     {path === "/course/withdraw" ? <p className="student-course-message">目前狀態：{d.withdrawalOpen ? "全校開放停修申請" : "全校關閉停修申請"}</p> : null}
     {path === "/course/general" ? <p className="student-course-message">目前狀態：{d.generalSelectionOpen ? "全校開放通識初選" : "全校關閉通識初選"}</p> : null}
-    {!applicationClosed ? <>
+    {midtermAlert ? <p className="student-course-message">目前狀態：{d.midtermAlertOpen ? "全校開放期中預警" : "全校關閉期中預警"}</p> : null}
+    {path === "/query/semester-grades" ? <p className="student-course-message">目前狀態：{d.semesterGradeOpen ? "全校開放學期成績查詢" : "全校關閉學期成績查詢"}</p> : null}
+    {!featureClosed ? <>
     {!allHistory ? <Form key={`${path}-${d.semester}-${d.offeringId}-${d.teacherId}-${d.classroom}`} method="get" className="course-catalog-filters">
       <label>學期<select name="semester" defaultValue={d.semester}>{d.semesters.map((s) => <option key={s}>{s}</option>)}</select></label>
       {scopedCourse ? <label>授課課程<select name="offeringId" defaultValue={String(d.offeringId || "")}><option value="">{d.courses.length ? "請選擇課程" : "目前沒有授課課程"}</option>{courseOptions}</select></label> : null}
