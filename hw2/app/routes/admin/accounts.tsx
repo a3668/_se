@@ -21,15 +21,17 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const requestedPage = pageValue !== null && /^[1-9]\d*$/.test(pageValue)
     && Number.isSafeInteger(parsedPage) ? parsedPage : 1;
   const filters = { query, department, grade };
-  const result = listAccountPage(kind, filters, requestedPage);
-  if (pageValue !== null && (String(result.pagination.currentPage) !== pageValue || requestedPage === 1)) {
+  const searched = searchParams.get("search") === "1" || Boolean(query || department || grade);
+  const result = listAccountPage(kind, filters, requestedPage, searched);
+  if (searched && pageValue !== null && (String(result.pagination.currentPage) !== pageValue || requestedPage === 1)) {
     return redirect(getPageHref(accountPath(kind), filters, result.pagination.currentPage));
   }
-  return { kind, ...filters, ...result };
+  return { kind, ...filters, ...result, searched };
 }
 
 function getPageHref(basePath: string, filters: { query: string; department: string; grade: string }, page: number) {
   const params = new URLSearchParams();
+  params.set("search", "1");
   if (filters.query) params.set("q", filters.query);
   if (filters.department) params.set("department", filters.department);
   if (filters.grade) params.set("grade", filters.grade);
@@ -38,7 +40,7 @@ function getPageHref(basePath: string, filters: { query: string; department: str
 }
 
 export default function Accounts({ loaderData }: Route.ComponentProps) {
-  const { kind, query, department, grade, accounts, departments, grades, pagination } = loaderData;
+  const { kind, query, department, grade, accounts, departments, grades, pagination, searched } = loaderData;
   const label = accountLabel(kind);
   const basePath = accountPath(kind);
   return (
@@ -51,6 +53,7 @@ export default function Accounts({ loaderData }: Route.ComponentProps) {
         <Link className="admin-primary-link" to={`${basePath}/new`}>新增{label}</Link>
       </div>
       <Form key={JSON.stringify([kind, query, department, grade])} className="admin-search" method="get" action={basePath}>
+        <input type="hidden" name="search" value="1" />
         <label htmlFor="account-search">搜尋{kind === "students" ? "學號" : "教師編號"}或姓名</label>
         <div>
           <input id="account-search" name="q" defaultValue={query} maxLength={100} />
@@ -73,7 +76,7 @@ export default function Accounts({ loaderData }: Route.ComponentProps) {
             </label>
           ) : null}
           <button type="submit">搜尋</button>
-          {query || department || grade ? <Link to={basePath}>清除</Link> : null}
+          {searched ? <Link to={basePath}>清除</Link> : null}
         </div>
       </Form>
       {accounts.length ? (
@@ -99,13 +102,15 @@ export default function Accounts({ loaderData }: Route.ComponentProps) {
             </tbody>
           </table>
         </div>
-      ) : <p className="admin-empty">{query || department || grade ? "找不到符合條件的資料。" : `目前沒有${label}資料。`}</p>}
+      ) : <p className="admin-empty">{searched ? "找不到符合條件的資料。" : `請先查詢${label}。`}</p>}
+      {searched ? <>
       <p className="admin-help admin-pagination-summary">共 {pagination.totalItems} 筆，第 {pagination.currentPage} / {pagination.totalPages} 頁</p>
       <Pagination
         currentPage={pagination.currentPage}
         totalPages={pagination.totalPages}
         getPageHref={(page) => getPageHref(basePath, { query, department, grade }, page)}
       />
+      </> : null}
     </main>
   );
 }

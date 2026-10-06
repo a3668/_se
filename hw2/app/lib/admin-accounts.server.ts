@@ -70,6 +70,7 @@ export function listAccountPage(
   kind: AccountKind,
   filters: { query: string; department: string; grade: string },
   requestedPage: number,
+  searched = true,
 ) {
   const db = getDatabase();
   const table = accountTable(kind);
@@ -84,17 +85,17 @@ export function listAccountPage(
   const bindings = [role, filters.query, filters.query, filters.query,
     filters.department, filters.department];
   if (kind === "students") bindings.push(filters.grade, filters.grade);
-  const { totalItems } = db.prepare(`SELECT COUNT(*) AS totalItems ${from} ${where}`)
-    .get(...bindings) as { totalItems: number };
+  const { totalItems } = searched ? db.prepare(`SELECT COUNT(*) AS totalItems ${from} ${where}`)
+    .get(...bindings) as { totalItems: number } : { totalItems: 0 };
   const totalPages = Math.max(1, Math.ceil(totalItems / ACCOUNT_PAGE_SIZE));
   const currentPage = Math.min(requestedPage, totalPages);
-  const accounts = db.prepare(
+  const accounts = searched ? db.prepare(
     `SELECT users.id AS user_id, users.username, profile.name, profile.birth_date,
             profile.department, ${gradeColumn}
      ${from} ${where}
      ORDER BY users.username COLLATE NOCASE, users.id
      LIMIT ? OFFSET ?`,
-  ).all(...bindings, ACCOUNT_PAGE_SIZE, (currentPage - 1) * ACCOUNT_PAGE_SIZE) as Account[];
+  ).all(...bindings, ACCOUNT_PAGE_SIZE, (currentPage - 1) * ACCOUNT_PAGE_SIZE) as Account[] : [];
   const departments = db.prepare(
     `SELECT DISTINCT profile.department ${from} WHERE users.role = ?
      ORDER BY profile.department COLLATE NOCASE`,

@@ -14,8 +14,10 @@ const weekdays = [
   ["四", "Thursday"], ["五", "Friday"], ["六", "Saturday"], ["日", "Sunday"],
 ];
 
-// Only the times supplied in the reference image are confirmed.
-const periodTimes = ["0810–0900", "0910–1000", "1010–1100", "1110–1200", "1330–1420"];
+const periodTimes = [
+  "0810–0900", "0910–1000", "1010–1100", "1110–1200",
+  "1330–1420", "1430–1520", "1530–1620", "1630–1720",
+];
 
 export function TeacherTimetable({ lessons, teacherName, semester, title = "授課課表" }: {
   lessons: Lesson[];
@@ -34,27 +36,30 @@ export function TeacherTimetable({ lessons, teacherName, semester, title = "授�
           </tr>
         </thead>
         <tbody>
-          {Array.from({ length: 14 }, (_, index) => index + 1).map((period) => (
-            <tr key={period}>
-              <th scope="row">
-                <span>第 {period} 節</span>
-                {periodTimes[period - 1] ? <span>{periodTimes[period - 1]}</span> : null}
-              </th>
-              {weekdays.map(([day], index) => (
-                <td key={day}>
-                  {lessons.filter((lesson) => lesson.weekday === index + 1
-                    && lesson.startPeriod !== null && lesson.endPeriod !== null
-                    && lesson.startPeriod <= period && lesson.endPeriod >= period).map((lesson) => (
-                    <div className="admin-schedule-lesson" key={`${lesson.offeringId}-${lesson.startPeriod}-${lesson.endPeriod}`}>
-                      <span>{lesson.name}</span>
-                      <span>{lesson.code} · {lesson.section} 班</span>
-                      <span>{lesson.classroom || "教室未定"}</span>
-                    </div>
-                  ))}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {periodTimes.map((time, index) => {
+            const period = index + 1;
+            return (
+              <tr key={period}>
+                <th scope="row">
+                  <span>第 {period} 節</span>
+                  <span>{time}</span>
+                </th>
+                {weekdays.map(([day], index) => (
+                  <td key={day}>
+                    {lessons.filter((lesson) => lesson.weekday === index + 1
+                      && lesson.startPeriod !== null && lesson.endPeriod !== null
+                      && lesson.startPeriod <= period && lesson.endPeriod >= period).map((lesson) => (
+                      <div className="admin-schedule-lesson" key={`${lesson.offeringId}-${lesson.startPeriod}-${lesson.endPeriod}`}>
+                        <span>{lesson.name}</span>
+                        <span>{lesson.code} · {lesson.section} 班</span>
+                        <span>{lesson.classroom || "教室未定"}</span>
+                      </div>
+                    ))}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

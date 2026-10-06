@@ -1,10 +1,12 @@
 import { getDatabase } from "./db.server";
+import { ENROLLMENT_CLOSED_MESSAGE, isStudentEnrollmentOpen } from "./enrollment-settings.server";
 
 export const ACTIVE_SEMESTER = "115-1";
 
 type OfferingRow = {
   offering_id: number;
   course_code: string;
+  department: string;
   name: string;
   grade: number;
   credits: number;
@@ -30,6 +32,7 @@ export type CourseSchedule = {
 export type StudentOffering = {
   id: number;
   code: string;
+  department: string;
   name: string;
   grade: number;
   credits: number;
@@ -41,6 +44,8 @@ export type StudentOffering = {
   selected: boolean;
   schedules: CourseSchedule[];
   conflict: boolean;
+  withdrawn: boolean;
+  dropBlockedReason: string | null;
 };
 
 export function parseOfferingId(value: FormDataEntryValue | null) {
@@ -66,10 +71,41 @@ function schedulesConflict(a: CourseSchedule[], b: CourseSchedule[]) {
   ));
 }
 
-export function getStudentOfferings(studentUserId: number) {
-  const department = getStudentDepartment(studentUserId);
+export function getSemesterOptions() {
+  const semesters = (getDatabase().prepare("SELECT DISTINCT semester FROM course_offerings ORDER BY semester DESC").all() as { semester: string }[]).map((r) => r.semester);
+  if (!semesters.includes(ACTIVE_SEMESTER)) semesters.push(ACTIVE_SEMESTER);
+  return semesters;
+}
+
+export function getSemesterFilter(request: Request) {
+  const semesters = getSemesterOptions();
+  const semester = new URL(request.url).searchParams.get("semester") || ACTIVE_SEMESTER;
+  if (!semesters.includes(semester)) throw new Response("Bad Request", { status: 400 });
+  return { semester, semesters };
+}
+
+export function getStudentOfferingGrades(semester = ACTIVE_SEMESTER) {
   const rows = getDatabase().prepare(
-    `SELECT o.id AS offering_id, c.course_code, c.name, c.grade, c.credits, c.category,
+    `SELECT DISTINCT c.grade FROM course_offerings o
+     JOIN courses c ON c.id = o.course_id
+     WHERE o.semester = ? ORDER BY c.grade`,
+  ).all(semester) as { grade: number }[];
+  return rows.map((row) => row.grade);
+}
+
+export function getStudentOfferingDepartments(semester = ACTIVE_SEMESTER) {
+  const rows = getDatabase().prepare(
+    `SELECT DISTINCT c.department FROM course_offerings o
+     JOIN courses c ON c.id = o.course_id
+     WHERE o.semester = ? ORDER BY c.department`,
+  ).all(semester) as { department: string }[];
+  return rows.map((row) => row.department);
+}
+
+export function getStudentOfferings(studentUserId: number, semester = ACTIVE_SEMESTER) {
+  getStudentDepartment(studentUserId);
+  const rows = getDatabase().prepare(
+    `SELECT o.id AS offering_id, c.course_code, c.department, c.name, c.grade, c.credits, c.category,
             o.section, o.capacity, t.name AS teacher_name,
             (SELECT COUNT(*) FROM enrollments e WHERE e.offering_id = o.id) AS enrolled_count,
             EXISTS(SELECT 1 FROM enrollments e WHERE e.offering_id = o.id AND e.student_user_id = ?) AS selected,
@@ -78,20 +114,32 @@ export function getStudentOfferings(studentUserId: number) {
      JOIN courses c ON c.id = o.course_id
      JOIN teachers t ON t.user_id = o.teacher_user_id
      LEFT JOIN course_schedules s ON s.offering_id = o.id
-     WHERE o.semester = ? AND c.department = ?
+     WHERE o.semester = ?
      ORDER BY c.grade, c.course_code, o.section, s.weekday, s.start_period`,
-  ).all(studentUserId, ACTIVE_SEMESTER, department) as OfferingRow[];
+  ).all(studentUserId, semester) as OfferingRow[];
+
+  const withdrawnIds = new Set((getDatabase().prepare(
+    "SELECT offering_id FROM student_applications WHERE student_user_id = ? AND semester = ? AND kind = 'withdraw' AND status = 'approved'",
+  ).all(studentUserId, semester) as { offering_id: number }[]).map((r) => r.offering_id));
+  const publishedGradeIds = new Set((getDatabase().prepare(
+    "SELECT offering_id FROM academic_grades WHERE student_user_id = ? AND published = 1",
+  ).all(studentUserId) as { offering_id: number }[]).map((r) => r.offering_id));
+  const pendingWithdrawIds = new Set((getDatabase().prepare(
+    "SELECT offering_id FROM student_applications WHERE student_user_id = ? AND semester = ? AND kind = 'withdraw' AND status = 'pending'",
+  ).all(studentUserId, semester) as { offering_id: number }[]).map((r) => r.offering_id));
 
   const offerings: StudentOffering[] = [];
   for (const row of rows) {
     let offering = offerings[offerings.length - 1];
     if (offering?.id !== row.offering_id) {
       offering = {
-        id: row.offering_id, code: row.course_code, name: row.name, grade: row.grade,
+        id: row.offering_id, code: row.course_code, department: row.department, name: row.name, grade: row.grade,
         credits: row.credits, category: row.category, section: row.section,
         capacity: row.capacity, teacherName: row.teacher_name,
         enrolledCount: row.enrolled_count, selected: Boolean(row.selected),
-        schedules: [], conflict: false,
+        schedules: [], conflict: false, withdrawn: withdrawnIds.has(row.offering_id),
+        dropBlockedReason: publishedGradeIds.has(row.offering_id) ? "已公布成績，不可退選"
+          : pendingWithdrawIds.has(row.offering_id) ? "停修申請待審，請先取消申請" : null,
       };
       offerings.push(offering);
     }
@@ -111,20 +159,29 @@ export function getStudentOfferings(studentUserId: number) {
   return offerings;
 }
 
-export function addEnrollment(studentUserId: number, offeringId: number): string | null {
+export function addEnrollment(studentUserId: number, offeringId: number, withinTransaction = false): string | null {
   const db = getDatabase();
-  db.exec("BEGIN IMMEDIATE");
+  if (withinTransaction && !db.isTransaction) throw new Error("Expected an active enrollment transaction");
+  if (!withinTransaction) db.exec("BEGIN IMMEDIATE");
   try {
-    const department = getStudentDepartment(studentUserId);
+    if (!isStudentEnrollmentOpen(studentUserId, ACTIVE_SEMESTER)) {
+      if (!withinTransaction) db.exec("ROLLBACK");
+      return ENROLLMENT_CLOSED_MESSAGE;
+    }
+    getStudentDepartment(studentUserId);
     const offering = db.prepare(
-      `SELECT o.capacity, o.semester, c.department
-       FROM course_offerings o JOIN courses c ON c.id = o.course_id
+      `SELECT o.capacity, o.semester
+       FROM course_offerings o
        WHERE o.id = ?`,
-    ).get(offeringId) as { capacity: number; semester: string; department: string } | undefined;
+    ).get(offeringId) as { capacity: number; semester: string } | undefined;
 
     let error: string | null = null;
-    if (!offering || offering.semester !== ACTIVE_SEMESTER || offering.department !== department) {
+    if (!offering || offering.semester !== ACTIVE_SEMESTER) {
       error = "無法加選這門課。";
+    } else if (db.prepare(
+      "SELECT 1 FROM student_applications WHERE student_user_id = ? AND offering_id = ? AND kind = 'withdraw' AND status = 'approved'",
+    ).get(studentUserId, offeringId)) {
+      error = "已停修的課程不可重新加選。";
     } else if (db.prepare(
       "SELECT 1 FROM enrollments WHERE student_user_id = ? AND offering_id = ?",
     ).get(studentUserId, offeringId)) {
@@ -154,19 +211,43 @@ export function addEnrollment(studentUserId: number, offeringId: number): string
         "INSERT INTO enrollments (student_user_id, offering_id, created_at) VALUES (?, ?, ?)",
       ).run(studentUserId, offeringId, new Date().toISOString());
     }
-    db.exec("COMMIT");
+    if (!withinTransaction) db.exec("COMMIT");
     return error;
   } catch (error) {
-    if (db.isTransaction) db.exec("ROLLBACK");
+    if (!withinTransaction && db.isTransaction) db.exec("ROLLBACK");
     throw error;
   }
 }
 
-export function dropEnrollment(studentUserId: number, offeringId: number) {
-  const result = getDatabase().prepare(
-    `DELETE FROM enrollments
-     WHERE student_user_id = ? AND offering_id = ?
-       AND offering_id IN (SELECT id FROM course_offerings WHERE semester = ?)`,
-  ).run(studentUserId, offeringId, ACTIVE_SEMESTER);
-  return result.changes > 0;
+export function dropEnrollment(studentUserId: number, offeringId: number): string | null {
+  const db = getDatabase();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    if (!isStudentEnrollmentOpen(studentUserId, ACTIVE_SEMESTER)) {
+      db.exec("ROLLBACK");
+      return ENROLLMENT_CLOSED_MESSAGE;
+    }
+    if (db.prepare("SELECT 1 FROM academic_grades WHERE student_user_id = ? AND offering_id = ? AND published = 1").get(studentUserId, offeringId)) {
+      db.exec("ROLLBACK");
+      return "已公布成績的課程不可退選。";
+    }
+    if (db.prepare("SELECT 1 FROM student_applications WHERE student_user_id = ? AND offering_id = ? AND kind = 'withdraw' AND status = 'pending'").get(studentUserId, offeringId)) {
+      db.exec("ROLLBACK");
+      return "此課程有待審停修申請，請先取消申請再退選。";
+    }
+    const result = db.prepare(
+      `DELETE FROM enrollments
+       WHERE student_user_id = ? AND offering_id = ?
+         AND offering_id IN (SELECT id FROM course_offerings WHERE semester = ?)`,
+    ).run(studentUserId, offeringId, ACTIVE_SEMESTER);
+    if (result.changes > 0) {
+      db.prepare("DELETE FROM academic_grades WHERE student_user_id = ? AND offering_id = ? AND published = 0").run(studentUserId, offeringId);
+      db.prepare("DELETE FROM midterm_alerts WHERE student_user_id = ? AND offering_id = ?").run(studentUserId, offeringId);
+    }
+    db.exec("COMMIT");
+    return result.changes > 0 ? null : "這門課不在你的已選課程中。";
+  } catch (error) {
+    if (db.isTransaction) db.exec("ROLLBACK");
+    throw error;
+  }
 }

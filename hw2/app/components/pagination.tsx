@@ -4,9 +4,10 @@ type PaginationProps = {
   currentPage: number;
   totalPages: number;
   getPageHref: (page: number) => string;
+  label?: string;
 };
 
-export function Pagination({ currentPage, totalPages, getPageHref }: PaginationProps) {
+export function Pagination({ currentPage, totalPages, getPageHref, label = "帳號列表分頁" }: PaginationProps) {
   if (totalPages <= 1) return null;
   const pages = totalPages <= 7
     ? Array.from({ length: totalPages }, (_, index) => index + 1)
@@ -16,7 +17,7 @@ export function Pagination({ currentPage, totalPages, getPageHref }: PaginationP
         ? [1, totalPages - 3, totalPages - 2, totalPages - 1, totalPages]
         : [1, currentPage - 1, currentPage, currentPage + 1, totalPages];
   return (
-    <nav className="admin-pagination" aria-label="帳號列表分頁">
+    <nav className="admin-pagination" aria-label={label}>
       {currentPage > 1 ? <Link to={getPageHref(currentPage - 1)}>上一頁</Link>
         : <span aria-disabled="true">上一頁</span>}
       {pages.map((page, index) => (
