@@ -239,7 +239,7 @@ export function getAcademicData(user: CurrentUser, path: string, params: URLSear
         WHERE o.semester = ? AND ${value.teacherId ? "o.teacher_user_id = ?" : "s.classroom = ?"}
         ORDER BY c.course_code, s.weekday, s.start_period`, semester, value.teacherId || value.classroom);
     }
-    value.note = "課表沿用週一至週日、1–14 節的共用格式。";
+    value.note = "日校課程安排於週一至週五、第 1–8 節，最晚 17:20 下課。";
   }
   return value;
 }
@@ -322,7 +322,7 @@ export function saveAcademicAction(user: CurrentUser, path: string, form: FormDa
         const date = dateField(form, "date");
         const period = Number(textField(form, "period", 2));
         const weekday = new Date(`${date}T00:00:00Z`).getUTCDay() || 7;
-        if (!Number.isInteger(period) || period < 1 || period > 14 || !row("SELECT 1 FROM course_schedules WHERE offering_id = ? AND weekday = ? AND start_period <= ? AND end_period >= ?", offeringId, weekday, period, period)) throw new InputError(`所選日期與節次不在課程的週${weekdays[weekday]}時段內。`);
+        if (!Number.isInteger(period) || period < 1 || period > 8 || !row("SELECT 1 FROM course_schedules WHERE offering_id = ? AND weekday = ? AND start_period <= ? AND end_period >= ?", offeringId, weekday, period, period)) throw new InputError(`所選日期與節次不在課程的週${weekdays[weekday]}時段內。`);
         const status = choice(form, "status", ["present", "absent", "late", "leave"]);
         if (status === "present") run("DELETE FROM attendance_records WHERE student_user_id = ? AND offering_id = ? AND attendance_date = ? AND period = ?", studentId, offeringId, date, period);
         else run(`INSERT INTO attendance_records (student_user_id, offering_id, attendance_date, period, status, note, updated_at)
