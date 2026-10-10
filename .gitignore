@@ -224,3 +224,9 @@ __marimo__/
 .env.local
 .dev.vars*
 !.dev.vars.example
+# =========================
+# macOS
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
