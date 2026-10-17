@@ -1,0 +1,9 @@
+services:
+  dev-vm:
+    build: .
+    container_name: my-dev-vm
+    restart: always
+    volumes:
+      # 將 Mac 的 shain 資料夾掛載到容器內的 /shain
+      - /Users/Shared/shain:/shain
+    working_dir: /shain
