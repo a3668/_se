@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Shain Chat</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar" aria-label="對話側邊欄">
+      <a class="brand" href="/" aria-label="Shain Chat 首頁"><span class="brand-icon">S</span> Shain Chat</a>
+      <button id="new-chat" class="new-chat" type="button" disabled><span aria-hidden="true">＋</span> 新增對話</button>
+      <h2 class="sidebar-heading">歷史對話</h2>
+      <nav id="conversations" class="conversation-list" aria-label="歷史對話"></nav>
+      <div class="sidebar-footer"><span class="docker-mark" aria-hidden="true">▦</span><div>Docker 聊天系統<small>Nginx · Node.js · PostgreSQL</small></div></div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div><span class="eyebrow">OLLAMA CLOUD</span><h1 id="chat-title">新對話</h1></div>
+        <span class="model-badge"><span aria-hidden="true">✦</span> <span id="model">載入模型設定中…</span></span>
+      </header>
+      <section id="messages" class="messages" aria-label="聊天訊息" aria-busy="false">
+        <div id="welcome" class="welcome">
+          <div class="welcome-icon" aria-hidden="true">✦</div>
+          <p class="eyebrow">YOUR SPACE TO THINK</p>
+          <h2>今天想聊些什麼？</h2>
+          <p>從一個問題開始，讓想法慢慢成形。<br>你的對話會自動保存，隨時可以接續。</p>
+          <div class="suggestions" aria-label="提問範例">
+            <button type="button" data-prompt="請用簡單的方式介紹 Docker 容器的用途。" disabled>了解 Docker<span aria-hidden="true">↗</span></button>
+            <button type="button" data-prompt="請說明 Nginx 反向代理如何與 Node.js 合作。" disabled>探索反向代理<span aria-hidden="true">↗</span></button>
+            <button type="button" data-prompt="請解釋 PostgreSQL 和 Docker volume 的關係。" disabled>認識資料保存<span aria-hidden="true">↗</span></button>
+          </div>
+        </div>
+      </section>
+      <div class="composer-area">
+        <p id="status" class="status" role="status" aria-live="polite">正在載入對話…</p>
+        <form id="composer" class="composer">
+          <label class="sr-only" for="message-input">輸入訊息</label>
+          <textarea id="message-input" placeholder="傳送訊息給 Shain Chat…" rows="1" maxlength="16000" disabled></textarea>
+          <button id="send" class="send" type="submit" aria-label="送出訊息" disabled>↑</button>
+        </form>
+        <p class="composer-note">Enter 送出 · Shift＋Enter 換行 <span>AI 回答可能有誤，重要資訊請自行確認。</span></p>
+      </div>
+    </main>
+  </body>
+</html>
