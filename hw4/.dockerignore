@@ -1,0 +1,4 @@
+.env
+**/node_modules
+docs
+hw4.md
