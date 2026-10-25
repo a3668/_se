@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | 單元測試 | Server（Rust）的組譯器與 CPU 模擬核心；Client 單元測試可省略 | 已建立，共 42 項 |
 | 系統測試 | 透過 HTTP 呼叫 Web API，檢查回傳內容與資料儲存 | 已建立 |
-| E2E 測試 | 使用 Playwright 無頭瀏覽器，測試完整前後端操作流程 | 尚未建立 |
+| E2E 測試 | 使用 Playwright 無頭 Chromium，測試完整前後端操作流程 | 已建立，共 37 項 |
 
 ## 1. 單元測試（Rust Server）
 
@@ -109,4 +109,73 @@ TEST_SERVER_PORT=18081 bash tests/api/test.sh
 
 ## 3. E2E 測試（無頭 Playwright）
 
-尚未建立。預計使用 Playwright 無頭瀏覽器測試完整前後端流程；完成後再補上執行步驟。
+### 執行前準備
+
+- 安裝 Node.js 24、npm、Rust stable、Cargo、Bash、curl、Python 3。
+- E2E 使用獨立的 npm 專案；套件、lockfile、設定、腳本與案例都在 [e2e/](e2e/)，不需要全域安裝 Playwright。
+- 第一次使用時，從 `hw5` 安裝前端與 E2E 相依套件，再下載 Chromium：
+
+```bash
+npm --prefix frontend ci
+npm --prefix tests/e2e ci
+npm --prefix tests/e2e run install:browser
+```
+
+E2E 開發相依為 `@playwright/test`、`@types/node`、`typescript`，確切版本由 `e2e/package-lock.json` 固定。Chromium 存放在 `e2e/node_modules/.cache/ms-playwright/`。更新 Playwright 後需再次執行 `install:browser`。
+
+採 `channel: 'chromium'` 與 `headless: true`，使用完整 Chromium 的新無頭模式；本機的 Chrome Headless Shell 曾發生動畫 frame 不前進、點擊等待逾時，因此不採預設 shell 模式。
+
+### 執行步驟
+
+從 repository 根目錄執行：
+
+```bash
+cd hw5
+bash tests/e2e/test.sh
+```
+
+已經位於 `hw5` 時，只需最後一行。也可以在 `tests/e2e` 執行 `npm test`。
+
+預設連接埠為 `127.0.0.1:18082`，占用時直接停止；可指定其他連接埠：
+
+```bash
+E2E_SERVER_PORT=18083 bash tests/e2e/test.sh
+```
+
+執行特定案例或檔案：
+
+```bash
+bash tests/e2e/test.sh --grep '教學範例'
+bash tests/e2e/test.sh history.spec.ts
+```
+
+腳本會編譯 Rust 與前端、建立臨時 SQLite、啟動 Rust 提供編譯後的前端、等待自己的後端及 `/health` 就緒、檢查 E2E 型別，最後執行無頭 Chromium。單一 worker 依序執行，失敗不自動重試，個別案例上限 30 秒，整輪上限 10 分鐘。
+
+不需要事先啟動服務或 Vite。腳本設定獨立的 `SERVER_ADDR`、`DATABASE_PATH`；每個案例使用新的瀏覽器 context，並透過 API 清除該臨時資料庫內的模擬與程式。正常結束、失敗或收到 INT／TERM 時，只關閉本次啟動的後端並刪除臨時資料庫，不使用開發用 `mips.db`，不重用或關閉既有服務。
+
+請使用啟動腳本，不要自行設定 `HW5_E2E_BASE_URL`、`HW5_E2E_ISOLATED` 後直接呼叫 Playwright；案例會刪除所連接後端的測試資料。
+
+### 涵蓋內容與檔案
+
+| 檔案 | 項數 | 內容 |
+| --- | --- | --- |
+| [simulation.spec.ts](e2e/simulation.spec.ts) | 14 | 初始狀態、四個教學範例、cycle 導覽、播放速度／暫停／結尾、縮放、Control Unit、stall／forwarding／flush、18 欄時序視窗、動態 ID、初值與記憶體分頁、時鐘邊緣前後值 |
+| [history.spec.ts](e2e/history.spec.ts) | 8 | 程式新增／更新／載入、未完成草稿、取代確認、快照不隨編輯改變、重新整理後回放、刪除取消／確認、刪程式保留快照、刪除目前紀錄及清單重新整理 |
+| [errors.spec.ts](e2e/errors.spec.ts) | 15 | 11 種無效輸入與修正後再執行、執行期記憶體錯誤／溢位、cycle 上限及其回放、連線失敗後重新連線 |
+
+[helpers.ts](e2e/helpers.ts) 提供資料清理、表單輸入、播放定位及共用斷言。[playwright.config.ts](e2e/playwright.config.ts) 定義無頭瀏覽器與報告設定，[test.sh](e2e/test.sh) 負責建置、服務與清理。
+
+主要流程透過真實前端、Rust API 與 SQLite 執行；API 另外用於資料準備、清理和補充確認。連線恢復案例暫時攔截請求以製造連線錯誤，解除後重新連接真實 API。播放速度案例使用 Playwright Clock 推進瀏覽器計時器。未使用固定 sleep 作為畫面同步，也不以 API 回傳值作為唯一結果斷言。
+
+### 判讀結果與產物
+
+終端逐項顯示通過或失敗；全部通過時顯示 `37 passed`，退出碼為 0。失敗、中斷、缺少套件或服務啟動失敗時，退出碼為非零。只執行部分案例時，數量會依篩選改變。
+
+產物位於 `e2e/artifacts/`，已排除 Git：
+
+- `results.json`：最近一次進入 Playwright runner 的詳細結果。
+- `html/index.html`：HTML 報告，執行後不自動開啟。
+- `results/`：失敗案例的 screenshot、trace 與錯誤上下文（能取得時保留）。
+- `server.log`：最近一次啟動的測試後端日誌。
+
+每輪會更新對應產物，啟動腳本在編譯前清除舊 `results.json`，避免將先前結果誤認成本輪結果。實際執行摘要與已知限制記錄於 [test_report.md](test_report.md)。
