@@ -88,8 +88,8 @@ pub fn assemble(source: &str) -> Result<Vec<Instruction>, String> {
 fn parse_instruction(pc: u32, line: usize, text: &str, labels: &HashMap<String, u32>) -> Result<Instruction, String> {
     let clean = text.replace([',', '(', ')'], " ");
     let tokens: Vec<&str> = clean.split_whitespace().collect();
-    let op = tokens[0].to_lowercase();
-    let args = &tokens[1..];
+    let (opcode, args) = tokens.split_first().ok_or("缺少指令名稱")?;
+    let op = opcode.to_lowercase();
     let mut i = Instruction { pc, line, text: text.to_string(), op: op.clone(), rs: 0, rt: 0, rd: 0, immediate: 0, target: 0, shamt: 0, machine_code: 0, destination: None, reads_rs_ex: false, reads_rt_ex: false, control: Control { alu_op: op.clone(), ..Default::default() } };
     let count = |n| if args.len() == n { Ok(()) } else { Err(format!("{op} 需要 {n} 個運算元")) };
     let r_function = match op.as_str() { "add" => Some(32), "addu" => Some(33), "sub" => Some(34), "subu" => Some(35), "and" => Some(36), "or" => Some(37), "xor" => Some(38), "nor" => Some(39), "slt" => Some(42), "sltu" => Some(43), _ => None };
