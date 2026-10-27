@@ -232,3 +232,15 @@ __marimo__/
 .LSOverride
 **/docs/
 hw4/chat/node_modules/
+
+# Node.js dependencies
+node_modules/
+
+# SQLite local databases
+*.db
+*.db-shm
+*.db-wal
+
+# Local environment files
+.env.*
+!.env.example
