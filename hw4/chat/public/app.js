@@ -6,22 +6,200 @@ const send = document.querySelector('#send');
 const newChat = document.querySelector('#new-chat');
 const status = document.querySelector('#status');
 const title = document.querySelector('#chat-title');
+const modelPicker = document.querySelector('#model-picker');
+const modelToggle = document.querySelector('#model-toggle');
+const modelLabel = document.querySelector('#model-label');
+const modelMenu = document.querySelector('#model-menu');
+const modelStatus = document.querySelector('#model-status');
+const conversationMenu = document.querySelector('#conversation-menu');
+const conversationDialog = document.querySelector('#conversation-dialog');
+const dialogForm = document.querySelector('#conversation-dialog-form');
+const dialogTitle = document.querySelector('#conversation-dialog-title');
+const dialogDescription = document.querySelector('#conversation-dialog-description');
+const renameField = document.querySelector('#rename-field');
+const conversationName = document.querySelector('#conversation-name');
+const dialogError = document.querySelector('#conversation-dialog-error');
+const dialogSubmit = document.querySelector('#conversation-dialog-submit');
+const dialogCancel = document.querySelector('#conversation-dialog-cancel');
+const dialogClose = document.querySelector('#conversation-dialog-close');
 let conversations = [];
 let currentId = null;
 let busy = true;
+let models = [];
+let selectedModel = '';
+let conversationMenuTarget = null;
+let dialogTarget = null;
+let dialogSaving = false;
+
+function hasSelectedModel() {
+  return models.includes(selectedModel);
+}
+
+function updateModelButton(fallback = '選擇模型') {
+  const name = hasSelectedModel() ? selectedModel : '';
+  modelLabel.textContent = name
+    ? name.split('/').pop().replace(/-cloud$/, '').replace(/:/g, ' ').toUpperCase()
+    : fallback;
+  modelToggle.title = name || fallback;
+  modelToggle.setAttribute('aria-label', name ? `選擇聊天模型，目前為 ${name}` : `選擇聊天模型：${fallback}`);
+}
+
+function closeModelMenu(restoreFocus = false) {
+  modelMenu.hidden = true;
+  modelToggle.setAttribute('aria-expanded', 'false');
+  if (restoreFocus && !modelToggle.disabled) modelToggle.focus();
+}
+
+function positionModelMenu() {
+  if (modelMenu.hidden) return;
+  const anchor = modelToggle.getBoundingClientRect();
+  const width = Math.min(320, window.innerWidth - 24);
+  // 清單獨立於輸入框定位，避免窄螢幕或長名稱將清單推出視窗。
+  modelMenu.style.width = `${width}px`;
+  modelMenu.style.left = `${Math.max(12, Math.min(anchor.right - width, window.innerWidth - width - 12))}px`;
+  modelMenu.style.bottom = `${window.innerHeight - anchor.top + 10}px`;
+  modelMenu.style.maxHeight = `${Math.max(0, Math.min(300, anchor.top - 22))}px`;
+}
+
+function focusModelOption(index) {
+  const options = modelMenu.querySelectorAll('.model-option');
+  const option = options[index];
+  if (!option) return;
+  option.focus({ preventScroll: true });
+  if (option.offsetTop < modelMenu.scrollTop) modelMenu.scrollTop = option.offsetTop;
+  else if (option.offsetTop + option.offsetHeight > modelMenu.scrollTop + modelMenu.clientHeight) {
+    modelMenu.scrollTop = option.offsetTop + option.offsetHeight - modelMenu.clientHeight;
+  }
+}
+
+function openModelMenu(index = Math.max(0, models.indexOf(selectedModel))) {
+  if (modelToggle.disabled) return;
+  closeConversationMenu();
+  modelMenu.hidden = false;
+  modelToggle.setAttribute('aria-expanded', 'true');
+  positionModelMenu();
+  focusModelOption(index);
+}
+
+function renderModelOptions() {
+  modelMenu.replaceChildren();
+  models.forEach((name, index) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'model-option';
+    option.tabIndex = -1;
+    option.dataset.index = String(index);
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-selected', String(name === selectedModel));
+    const check = document.createElement('span');
+    check.className = 'model-option-check';
+    check.setAttribute('aria-hidden', 'true');
+    check.textContent = name === selectedModel ? '✓' : '';
+    const label = document.createElement('span');
+    label.className = 'model-option-name';
+    label.textContent = name;
+    option.append(check, label);
+    option.addEventListener('click', () => {
+      if (busy) return;
+      selectedModel = name;
+      updateModelButton();
+      modelStatus.textContent = '';
+      modelStatus.classList.remove('error');
+      send.disabled = !input.value.trim() || !hasSelectedModel();
+      closeModelMenu(true);
+      renderModelOptions();
+    });
+    modelMenu.append(option);
+  });
+}
 
 function showStatus(text = '', error = false) {
   status.textContent = text;
   status.classList.toggle('error', error);
 }
 
+function closeConversationMenu(restoreFocus = false) {
+  const target = conversationMenuTarget;
+  conversationMenuTarget = null;
+  conversationMenu.hidden = true;
+  if (!target) return;
+  target.button.setAttribute('aria-expanded', 'false');
+  target.button.closest('.conversation-row')?.classList.remove('menu-open');
+  if (restoreFocus && target.button.isConnected && !target.button.disabled) target.button.focus();
+}
+
+function positionConversationMenu() {
+  if (!conversationMenuTarget) return;
+  const anchor = conversationMenuTarget.button.getBoundingClientRect();
+  const bounds = list.getBoundingClientRect();
+  if (anchor.bottom <= bounds.top || anchor.top >= bounds.bottom
+      || anchor.right <= bounds.left || anchor.left >= bounds.right) {
+    closeConversationMenu();
+    return;
+  }
+  const width = Math.min(180, window.innerWidth - 24);
+  conversationMenu.style.width = `${width}px`;
+  conversationMenu.style.maxHeight = `${Math.max(0, window.innerHeight - 24)}px`;
+  conversationMenu.style.left = `${Math.max(12, Math.min(anchor.right + 8, window.innerWidth - width - 12))}px`;
+  conversationMenu.style.top = `${Math.max(12, Math.min(anchor.top, window.innerHeight - conversationMenu.offsetHeight - 12))}px`;
+}
+
+function openConversationMenu(conversation, button, index = 0) {
+  if (busy) return;
+  closeConversationMenu();
+  closeModelMenu();
+  conversationMenuTarget = { id: conversation.id, button };
+  button.setAttribute('aria-expanded', 'true');
+  button.closest('.conversation-row').classList.add('menu-open');
+  conversationMenu.hidden = false;
+  positionConversationMenu();
+  if (!conversationMenu.hidden) conversationMenu.querySelectorAll('button')[index].focus();
+}
+
+function openConversationDialog(action) {
+  const conversation = conversations.find((item) => item.id === conversationMenuTarget?.id);
+  if (busy || !conversation) return;
+  dialogTarget = { id: conversation.id, action };
+  closeConversationMenu();
+  const rename = action === 'rename';
+  dialogTitle.textContent = rename ? '重新命名對話' : '刪除對話';
+  dialogDescription.textContent = rename ? '取個簡短、容易辨識的名稱。'
+    : `確定要永久刪除「${conversation.title}」及所有訊息嗎？此操作無法復原。`;
+  renameField.hidden = !rename;
+  conversationName.value = rename ? conversation.title : '';
+  conversationName.removeAttribute('aria-invalid');
+  dialogError.textContent = '';
+  dialogSubmit.textContent = rename ? '儲存' : '刪除';
+  dialogSubmit.classList.toggle('danger', !rename);
+  conversationDialog.showModal();
+  if (rename) {
+    conversationName.focus();
+    conversationName.select();
+  } else dialogCancel.focus();
+}
+
+function closeConversationDialog() {
+  if (!dialogSaving) conversationDialog.close();
+}
+
+function setDialogSaving(value) {
+  dialogSaving = value;
+  conversationDialog.setAttribute('aria-busy', String(value));
+  for (const element of [dialogSubmit, dialogCancel, dialogClose, conversationName]) element.disabled = value;
+}
+
 function setBusy(value) {
   busy = value;
   input.disabled = value;
   newChat.disabled = value;
-  send.disabled = value || !input.value.trim();
+  send.disabled = value || !input.value.trim() || !hasSelectedModel();
+  if (value) {
+    closeModelMenu();
+    closeConversationMenu();
+  }
+  modelToggle.disabled = value || !models.length;
   messages.setAttribute('aria-busy', String(value));
-  for (const button of document.querySelectorAll('.conversation, [data-prompt]')) button.disabled = value;
+  for (const button of document.querySelectorAll('.conversation, .conversation-more, [data-prompt]')) button.disabled = value;
 }
 
 async function api(url, options) {
@@ -39,6 +217,7 @@ async function api(url, options) {
 }
 
 function renderList() {
+  closeConversationMenu();
   list.replaceChildren();
   if (!conversations.length) {
     const note = document.createElement('p');
@@ -47,16 +226,41 @@ function renderList() {
     list.append(note);
   }
   for (const conversation of conversations) {
+    const row = document.createElement('div');
+    row.className = 'conversation-row';
+    row.classList.toggle('active', conversation.id === currentId);
+    row.dataset.conversationId = String(conversation.id);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'conversation';
-    button.classList.toggle('active', conversation.id === currentId);
     button.setAttribute('aria-current', String(conversation.id === currentId));
     button.textContent = conversation.title;
     button.title = conversation.title;
     button.disabled = busy;
     button.addEventListener('click', () => openConversation(conversation.id));
-    list.append(button);
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'conversation-more';
+    more.textContent = '⋯';
+    more.title = 'More options';
+    more.setAttribute('aria-label', `More options：${conversation.title}`);
+    more.setAttribute('aria-haspopup', 'menu');
+    more.setAttribute('aria-controls', 'conversation-menu');
+    more.setAttribute('aria-expanded', 'false');
+    more.disabled = busy;
+    more.addEventListener('click', () => {
+      if (conversationMenuTarget?.id === conversation.id) closeConversationMenu(true);
+      else openConversationMenu(conversation, more);
+    });
+    more.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeConversationMenu(true);
+      else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        event.preventDefault();
+        openConversationMenu(conversation, more, ['ArrowUp', 'End'].includes(event.key) ? 1 : 0);
+      }
+    });
+    row.append(button, more);
+    list.append(row);
   }
 }
 
@@ -174,7 +378,8 @@ async function readEvents(response, onEvent) {
 document.querySelector('#composer').addEventListener('submit', async (event) => {
   event.preventDefault();
   const content = input.value.trim();
-  if (busy || !content) return;
+  if (busy || !content || !hasSelectedModel()) return;
+  const requestModel = selectedModel;
   setBusy(true);
   showStatus('正在儲存訊息…');
   let assistant;
@@ -185,7 +390,7 @@ document.querySelector('#composer').addEventListener('submit', async (event) => 
     const response = await api(`/api/conversations/${currentId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, model: requestModel }),
     });
     await readEvents(response, (type, data) => {
       if (type === 'user') {
@@ -237,14 +442,157 @@ function resizeInput() {
   input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
 }
 
+conversationMenu.addEventListener('click', (event) => {
+  const action = event.target.closest('[data-action]')?.dataset.action;
+  if (action) openConversationDialog(action);
+});
+conversationMenu.addEventListener('keydown', (event) => {
+  const items = [...conversationMenu.querySelectorAll('button')];
+  const index = items.indexOf(document.activeElement);
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeConversationMenu(true);
+  } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+      : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+    items[next].focus();
+  }
+});
+document.addEventListener('pointerdown', (event) => {
+  if (conversationMenuTarget && !conversationMenu.contains(event.target)
+      && !conversationMenuTarget.button.contains(event.target)) closeConversationMenu();
+});
+function dismissConversationMenuOnBlur() {
+  queueMicrotask(() => {
+    if (conversationMenuTarget && !conversationMenu.contains(document.activeElement)
+        && !conversationMenuTarget.button.contains(document.activeElement)) closeConversationMenu();
+  });
+}
+conversationMenu.addEventListener('focusout', dismissConversationMenuOnBlur);
+list.addEventListener('focusout', dismissConversationMenuOnBlur);
+window.addEventListener('resize', positionConversationMenu);
+window.addEventListener('scroll', positionConversationMenu, true);
+
+dialogCancel.addEventListener('click', closeConversationDialog);
+dialogClose.addEventListener('click', closeConversationDialog);
+conversationDialog.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  closeConversationDialog();
+});
+conversationDialog.addEventListener('close', () => {
+  const id = dialogTarget?.id;
+  dialogTarget = null;
+  const trigger = list.querySelector(`[data-conversation-id="${id}"] .conversation-more`);
+  if (trigger && !trigger.disabled) trigger.focus();
+  else if (!newChat.disabled) newChat.focus();
+});
+conversationName.addEventListener('input', () => {
+  conversationName.removeAttribute('aria-invalid');
+  dialogError.textContent = '';
+});
+dialogForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!dialogTarget || dialogSaving || busy) return;
+  const { id, action } = dialogTarget;
+  const name = conversationName.value.trim();
+  if (action === 'rename'
+      && (!name || Array.from(name).length > 100 || /[\p{Cc}\u2028\u2029]/u.test(name))) {
+    dialogError.textContent = '對話名稱須為單行，且為 1–100 個字元。';
+    conversationName.setAttribute('aria-invalid', 'true');
+    conversationName.focus();
+    return;
+  }
+  dialogError.textContent = '';
+  setDialogSaving(true);
+  setBusy(true);
+  let success = false;
+  try {
+    if (action === 'rename') {
+      const conversation = await (await api(`/api/conversations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: name }),
+      })).json();
+      conversations = conversations.map((item) => item.id === id ? conversation : item);
+      if (currentId === id) title.textContent = conversation.title;
+    } else {
+      await api(`/api/conversations/${id}`, { method: 'DELETE' });
+      conversations = conversations.filter((item) => item.id !== id);
+      if (currentId === id) {
+        currentId = null;
+        title.textContent = '新對話';
+        renderMessages([]);
+        input.value = '';
+        resizeInput();
+      }
+    }
+    renderList();
+    showStatus(action === 'rename' ? '對話名稱已更新' : '對話已刪除');
+    success = true;
+  } catch (error) {
+    dialogError.textContent = error.message;
+  } finally {
+    setDialogSaving(false);
+    setBusy(false);
+  }
+  if (success) closeConversationDialog();
+  else (action === 'rename' ? conversationName : dialogCancel).focus();
+});
+
 input.addEventListener('input', () => {
   resizeInput();
-  send.disabled = busy || !input.value.trim();
+  send.disabled = busy || !input.value.trim() || !hasSelectedModel();
 });
+modelToggle.addEventListener('click', () => {
+  if (modelMenu.hidden) openModelMenu();
+  else closeModelMenu();
+});
+modelToggle.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !modelMenu.hidden) {
+    event.preventDefault();
+    closeModelMenu(true);
+    return;
+  }
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  const index = event.key === 'Home' ? 0
+    : event.key === 'End' ? models.length - 1
+      : models.includes(selectedModel) ? models.indexOf(selectedModel)
+        : event.key === 'ArrowUp' ? models.length - 1 : 0;
+  openModelMenu(index);
+});
+modelMenu.addEventListener('keydown', (event) => {
+  const option = event.target.closest('.model-option');
+  if (!option) return;
+  const index = Number(option.dataset.index);
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeModelMenu(true);
+  } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? models.length - 1
+      : Math.max(0, Math.min(models.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)));
+    focusModelOption(next);
+  } else if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    option.click();
+  }
+});
+document.addEventListener('pointerdown', (event) => {
+  if (!modelPicker.contains(event.target)) closeModelMenu();
+});
+modelPicker.addEventListener('focusout', () => {
+  queueMicrotask(() => {
+    if (!modelPicker.contains(document.activeElement)) closeModelMenu();
+  });
+});
+window.addEventListener('resize', positionModelMenu);
+window.addEventListener('scroll', positionModelMenu, true);
 input.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
     event.preventDefault();
-    if (!busy && input.value.trim()) document.querySelector('#composer').requestSubmit();
+    if (!busy && input.value.trim() && hasSelectedModel()) document.querySelector('#composer').requestSubmit();
   }
 });
 for (const button of document.querySelectorAll('[data-prompt]')) {
@@ -258,14 +606,32 @@ for (const button of document.querySelectorAll('[data-prompt]')) {
 
 async function initialize() {
   try {
-    const [config, history] = await Promise.all([
+    // 模型服務失敗時，仍獨立載入歷史對話。
+    const [configResult, historyResult] = await Promise.allSettled([
       api('/api/config').then((response) => response.json()),
       api('/api/conversations').then((response) => response.json()),
     ]);
-    document.querySelector('#model').textContent = config.model;
-    input.maxLength = config.maxMessageLength;
-    conversations = history;
-    if (history.length) await loadConversation(history[0].id);
+    if (configResult.status === 'fulfilled') {
+      const config = configResult.value;
+      models = config.models;
+      input.maxLength = config.maxMessageLength;
+      selectedModel = models.includes(config.model) ? config.model : '';
+      renderModelOptions();
+      updateModelButton(models.length ? '選擇模型' : '無可用模型');
+      if (!models.length) {
+        modelStatus.textContent = 'Ollama 模型清單為空，請加入模型後重新整理頁面。';
+        modelStatus.classList.add('error');
+      } else if (!hasSelectedModel()) {
+        modelStatus.textContent = '預設模型不在清單中，請選擇模型後再送出訊息。';
+      }
+    } else {
+      updateModelButton('載入失敗');
+      modelStatus.textContent = `${configResult.reason.message} 可重新整理頁面再試。`;
+      modelStatus.classList.add('error');
+    }
+    if (historyResult.status === 'rejected') throw historyResult.reason;
+    conversations = historyResult.value;
+    if (conversations.length) await loadConversation(conversations[0].id);
     else renderList();
     showStatus();
   } catch (error) {

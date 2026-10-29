@@ -18,8 +18,7 @@
     </aside>
     <main class="main">
       <header class="topbar">
-        <div><span class="eyebrow">OLLAMA CLOUD</span><h1 id="chat-title">新對話</h1></div>
-        <span class="model-badge"><span aria-hidden="true">✦</span> <span id="model">載入模型設定中…</span></span>
+        <div><span class="eyebrow">OLLAMA</span><h1 id="chat-title">新對話</h1></div>
       </header>
       <section id="messages" class="messages" aria-label="聊天訊息" aria-busy="false">
         <div id="welcome" class="welcome">
@@ -39,10 +38,37 @@
         <form id="composer" class="composer">
           <label class="sr-only" for="message-input">輸入訊息</label>
           <textarea id="message-input" placeholder="傳送訊息給 Shain Chat…" rows="1" maxlength="16000" disabled></textarea>
-          <button id="send" class="send" type="submit" aria-label="送出訊息" disabled>↑</button>
+          <div class="composer-actions">
+            <div id="model-picker" class="model-picker">
+              <button id="model-toggle" class="model-toggle" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="model-menu" aria-describedby="model-status" aria-label="選擇聊天模型：載入中" disabled><span id="model-label" class="model-label">載入中</span><span class="model-chevron" aria-hidden="true">▾</span></button>
+              <div id="model-menu" class="model-menu" role="listbox" aria-label="聊天模型" hidden></div>
+            </div>
+            <button id="send" class="send" type="submit" aria-label="送出訊息" disabled>↑</button>
+          </div>
         </form>
+        <p id="model-status" class="model-status" role="status" aria-live="polite"></p>
         <p class="composer-note">Enter 送出 · Shift＋Enter 換行 <span>AI 回答可能有誤，重要資訊請自行確認。</span></p>
       </div>
     </main>
+    <div id="conversation-menu" class="conversation-menu" role="menu" aria-label="對話選項" hidden>
+      <button type="button" role="menuitem" data-action="rename" tabindex="-1"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5 4 4M4 20l5-1L20 8a2.8 2.8 0 0 0-4-4L5 15Z" /></svg>Rename</button>
+      <button type="button" role="menuitem" data-action="delete" class="danger" tabindex="-1"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" /></svg>Delete</button>
+    </div>
+    <dialog id="conversation-dialog" class="conversation-dialog" aria-labelledby="conversation-dialog-title" aria-describedby="conversation-dialog-description">
+      <form id="conversation-dialog-form" novalidate>
+        <button id="conversation-dialog-close" class="dialog-close" type="button" aria-label="關閉">×</button>
+        <h2 id="conversation-dialog-title"></h2>
+        <p id="conversation-dialog-description" class="dialog-description"></p>
+        <div id="rename-field" class="rename-field">
+          <label class="sr-only" for="conversation-name">對話名稱</label>
+          <input id="conversation-name" type="text" autocomplete="off" aria-describedby="conversation-dialog-error">
+        </div>
+        <p id="conversation-dialog-error" class="dialog-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button id="conversation-dialog-cancel" class="dialog-cancel" type="button">取消</button>
+          <button id="conversation-dialog-submit" class="dialog-submit" type="submit">儲存</button>
+        </div>
+      </form>
+    </dialog>
   </body>
 </html>

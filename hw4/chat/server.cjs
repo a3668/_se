@@ -10,13 +10,39 @@ const ollamaUrl = new URL('/api/chat', process.env.OLLAMA_BASE_URL || 'http://ho
 const active = new Map();
 const maxMessageLength = 16000;
 
+async function listModels() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(new URL('/api/tags', ollamaUrl), { signal: controller.signal });
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new Error(`Ollama 模型清單暫時無法取得（HTTP ${response.status}）。`);
+    }
+    const data = await response.json();
+    if (!Array.isArray(data?.models)
+        || data.models.some((item) => typeof item?.name !== 'string' || !item.name.trim())) {
+      throw new Error('Ollama 傳回的模型清單格式不正確。');
+    }
+    return [...new Set(data.models.map((item) => item.name))];
+  } catch (error) {
+    const message = controller.signal.aborted
+      ? '取得 Ollama 模型清單逾時，請稍後再試。'
+      : error instanceof TypeError ? '無法連接 Ollama 取得模型清單，請確認服務與連線設定。'
+        : error instanceof SyntaxError ? 'Ollama 傳回的模型清單格式不正確。' : error.message;
+    throw Object.assign(new Error(message), { statusCode: 503 });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 app.disable('x-powered-by');
 app.use(express.json({ limit: '64kb' }));
 app.use('/api', (req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
   // 僅接受同源網頁的寫入，不開放跨來源 CORS。
   const origin = req.get('origin');
-  if (req.method === 'POST' && origin) {
+  if (['POST', 'PATCH', 'DELETE'].includes(req.method) && origin) {
     try {
       if (new URL(origin).host !== req.get('host')) {
         return res.status(403).json({ error: '請從聊天網頁送出請求。' });
@@ -28,8 +54,12 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-app.get('/api/config', (req, res) => {
-  res.json({ model, maxMessageLength });
+app.get('/api/config', async (req, res) => {
+  try {
+    res.json({ model, maxMessageLength, models: await listModels() });
+  } catch (error) {
+    res.status(503).json({ error: error.message });
+  }
 });
 
 app.get('/api/conversations', async (req, res) => {
@@ -49,6 +79,34 @@ app.param('id', (req, res, next, value) => {
   req.conversationId = Number(value);
   next();
 });
+
+async function modifyConversation(req, res) {
+  const id = req.conversationId;
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+  if (req.method === 'PATCH'
+      && (!title || Array.from(title).length > 100 || /[\p{Cc}\u2028\u2029]/u.test(title))) {
+    return res.status(400).json({ error: '對話名稱須為單行，且為 1–100 個字元。' });
+  }
+  if (active.has(id)) {
+    return res.status(409).json({ error: '這段對話正在處理中，請稍後再試。' });
+  }
+  // 在第一個 await 前取得與聊天請求相同的鎖。
+  const controller = new AbortController();
+  active.set(id, controller);
+  try {
+    const result = req.method === 'PATCH'
+      ? await pool.query('UPDATE conversations SET title = $2 WHERE id = $1 RETURNING *', [id, title])
+      : await pool.query('DELETE FROM conversations WHERE id = $1 RETURNING id', [id]);
+    if (!result.rowCount) return res.status(404).json({ error: '找不到這段對話。' });
+    if (req.method === 'PATCH') return res.json(result.rows[0]);
+    res.status(204).end();
+  } finally {
+    active.delete(id);
+  }
+}
+
+app.patch('/api/conversations/:id', modifyConversation);
+app.delete('/api/conversations/:id', modifyConversation);
 
 app.get('/api/conversations/:id/messages', async (req, res) => {
   const conversation = await pool.query('SELECT * FROM conversations WHERE id = $1', [req.conversationId]);
@@ -102,6 +160,11 @@ app.post('/api/conversations/:id/messages', async (req, res) => {
   if (!content || content.length > maxMessageLength) {
     return res.status(400).json({ error: `請輸入 1 至 ${maxMessageLength} 個字元的訊息。` });
   }
+  const selectedModel = req.body?.model === undefined ? model : req.body.model;
+  if (typeof selectedModel !== 'string' || !selectedModel || selectedModel.length > 256
+      || /\s|\p{Cc}/u.test(selectedModel)) {
+    return res.status(400).json({ error: '請選擇有效的模型。' });
+  }
   if (active.has(id)) {
     return res.status(409).json({ error: '這段對話正在產生回答，請稍後再送出。' });
   }
@@ -117,6 +180,11 @@ app.post('/api/conversations/:id/messages', async (req, res) => {
   let client;
   let transaction = false;
   try {
+    const models = await listModels();
+    if (controller.signal.aborted) return;
+    if (!models.includes(selectedModel)) {
+      return res.status(400).json({ error: '選擇的模型已不在 Ollama 清單中，請選擇其他模型或重新整理頁面。' });
+    }
     client = await pool.connect();
     const conversation = await client.query('SELECT id FROM conversations WHERE id = $1', [id]);
     if (!conversation.rowCount) return res.status(404).json({ error: '找不到這段對話。' });
@@ -130,7 +198,8 @@ app.post('/api/conversations/:id/messages', async (req, res) => {
     );
     await client.query(
       `UPDATE conversations SET updated_at = NOW(),
-       title = CASE WHEN (SELECT COUNT(*) FROM messages WHERE conversation_id = $1) = 1
+       title = CASE WHEN title = '新對話'
+                    AND (SELECT COUNT(*) FROM messages WHERE conversation_id = $1) = 1
                     THEN $2 ELSE title END WHERE id = $1`,
       [id, Array.from(content.replace(/\s+/g, ' ')).slice(0, 32).join('')],
     );
@@ -158,20 +227,20 @@ app.post('/api/conversations/:id/messages', async (req, res) => {
       upstream = await fetch(ollamaUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages: history.rows, stream: true }),
+        body: JSON.stringify({ model: selectedModel, messages: history.rows, stream: true }),
         signal: controller.signal,
       });
     } catch {
       throw new Error(controller.signal.aborted
         ? '等待回答逾時或連線中斷。'
-        : '無法連接 Mac 的 Ollama，請確認服務與容器可連線的監聽設定。');
+        : '無法連接 Ollama，請確認服務與容器可連線的監聽設定。');
     }
     if (!upstream.ok) {
       await upstream.body?.cancel();
       if ([401, 403].includes(upstream.status)) {
         throw new Error('Ollama 授權失敗，請確認本機已登入並可使用 cloud 模型。');
       }
-      if (upstream.status === 404) throw new Error(`Ollama 找不到模型 ${model}，請確認模型設定。`);
+      if (upstream.status === 404) throw new Error(`Ollama 找不到模型 ${selectedModel}，請選擇其他模型或重新整理頁面。`);
       throw new Error(`Ollama 暫時無法回答（HTTP ${upstream.status}），請確認模型及雲端使用狀態。`);
     }
     if (!upstream.body) throw new Error('Ollama 沒有傳回回答。');
@@ -216,7 +285,7 @@ app.post('/api/conversations/:id/messages', async (req, res) => {
       if (res.headersSent) {
         await sendEvent(res, 'error', { error: message }).catch(() => {});
       } else {
-        res.status(503).json({ error: '暫時無法保存訊息，請稍後再試。' });
+        res.status(503).json({ error: error.statusCode === 503 ? message : '暫時無法保存訊息，請稍後再試。' });
       }
     }
     console.error('聊天請求失敗：', error.code || error.name);

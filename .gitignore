@@ -216,12 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-# dotenv environment variable files
-.env.development.local
-.env
-.env.test.local
-.env.production.local
-.env.local
+# Local development variables
 .dev.vars*
 !.dev.vars.example
 # =========================
@@ -231,7 +226,6 @@ __marimo__/
 .AppleDouble
 .LSOverride
 **/docs/
-hw4/chat/node_modules/
 
 # Node.js dependencies
 node_modules/
@@ -244,3 +238,13 @@ node_modules/
 # Local environment files
 .env.*
 !.env.example
+
+# HW2 project files
+!/hw2/app/lib/
+/hw2/.react-router/
+/hw2/data/*.sqlite
+/hw2/data/*.sqlite-*
+/hw2/data/*.db-*
+
+# HW5 E2E output
+/hw5/tests/e2e/artifacts/
