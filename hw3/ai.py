@@ -19,21 +19,30 @@ REQUEST_TIMEOUT = 120
 
 SYSTEM_PROMPT = """你是餐廳文字接待員，使用繁體中文，負責理解需求和追問，不負責分桌。
 餐廳有 A1～A7、B1～B7、C1～C7。A/C 是四人桌，B 是六人桌，只有 A 靠窗。
-目前只支援人數、靠窗/非靠窗偏好、指定桌號。不支援併桌、無障礙等尚未建模的限制。
+支援人數、靠窗/非靠窗偏好、指定桌號及多桌分配。桌子不移動；不支援實際併桌、無障礙等未建模限制。
+超過6位可分坐多桌；6位以下沒有合適單桌時也可提出分桌方案，不需要先追問分桌意願。
 只輸出一個 JSON 物件，所有欄位必須存在：
 {"party_size": null, "window_preference": null, "window_required": false,
- "table_name": null, "table_required": false, "other_requirements": [],
+ "table_name": null, "table_required": false, "allow_split": null, "other_requirements": [],
  "question": "", "reply": ""}
 party_size 是正整數或 null，window_preference 是 true(靠窗)/false(不靠窗)/null(無偏好)。
 table_name 是大寫合法桌號或 null。window_required/table_required 只在顧客明確表示
 「一定、只能、必須」時為 true，「希望、想要」只是偏好。所有布林值必須是真正 JSON 布林值。
+多桌方案的靠窗需求適用所有桌位；指定桌號表示方案應包含該桌，無須把整組擠進同一桌。
+allow_split 是 true(明確接受分桌)/false(明確拒絕分桌)/null(未表態)。未表態即可交由系統提出方案，
+不主動詢問是否可分桌。單純選擇繼續等待，不等於拒絕所有分桌方案。
+「必須坐同一桌、不要分桌」應設為 false；其他尚未建模的位置限制仍記錄為待釐清條件。
 綜合目前確認的需求及這一輪對話更新欄位，未修改的已知需求必須保留。
-不猜人數。缺少人數、有歧義或仍有不支援的條件時，question 放簡短追問；否則空字串。
-顧客回答了前次問題後，要更新或清空 question。不要只為了問「還有其他需求嗎」而阻擋分桌。
+不猜人數。只在缺少人數、需求矛盾、有歧義或特殊條件尚未釐清時，question 放簡短追問。
+顧客未提靠窗或桌號時就是無偏好，相關欄位填 null，不得主動追問座位偏好。
+例如「我們5位」應回傳 party_size=5、question=""、reply=""，直接交給系統分桌。
+顧客回答了前次問題後，要更新或清空 question。不要詢問「還有其他需求嗎」。
 不存在的桌號放入 other_requirements，詢問是否改選合法桌號，不能直接忽略。
-other_requirements 保存所有尚未解決的不支援條件，並詢問是否可取消該條件，
-只有顧客明確同意取消後才可移除，不能自行承諾可滿足。沒有條件時為空陣列。
-reply 是簡短接待文字；需要追問時與 question 相同。資訊完整時只說明已理解的需求，
+other_requirements 保存所有尚未解決的不支援條件或需求歧義，包含矛盾條件及指涉不明的桌號。
+對不支援條件詢問是否可取消；只有顧客明確同意取消後才可移除，不能自行承諾可滿足。
+歧義釐清後移除對應項目。沒有待釐清條件時為空陣列；不要將未提及的可選偏好放進此欄位。
+reply 只用於必要追問，與 question 相同。人數已知且 other_requirements 為空時，
+question 和 reply 都必須是空字串，不重述人數、不確認無偏好、不提供操作說明。
 不要宣稱已分配、已保留、已確認座位或開始帶位，也不要編造桌位使用狀態。
 """
 
@@ -66,6 +75,8 @@ def parse_result(content: str) -> ReceptionResult:
     for key in ("window_required", "table_required"):
         if type(data[key]) is not bool:
             raise ValueError("必要限制格式錯誤")
+    if data["allow_split"] is not None and type(data["allow_split"]) is not bool:
+        raise ValueError("分桌意願必須為布林值或 null")
     table = data["table_name"]
     if table is not None and (not isinstance(table, str) or not re.fullmatch(r"[ABC][1-7]", table)):
         raise ValueError("桌號必須介於 A1～C7")
@@ -81,11 +92,15 @@ def parse_result(content: str) -> ReceptionResult:
     requirements = Requirements(**{key: data[key] for key in Requirements.__dataclass_fields__})
     requirements.question = requirements.question.strip()
     requirements.other_requirements = [item.strip() for item in others]
+    # Unmentioned preferences are optional. A model-generated courtesy question
+    # must not delay seating when the party size and all stated needs are clear.
+    if size is not None and not requirements.other_requirements:
+        requirements.question = ""
     if size is None and not requirements.question:
         requirements.question = "請問一共有幾位用餐？"
     if others and not requirements.question:
         requirements.question = "目前尚無法保證這些特殊條件，是否可以取消這些條件？"
-    return ReceptionResult(requirements, requirements.question or data["reply"].strip() or "已了解需求，接下來為您尋找餐桌。")
+    return ReceptionResult(requirements, requirements.question)
 
 
 class RequestThread(QThread):

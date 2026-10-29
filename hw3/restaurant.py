@@ -37,6 +37,7 @@ class Requirements:
     window_required: bool = False
     table_name: str | None = None
     table_required: bool = False
+    allow_split: bool | None = None
     other_requirements: list[str] = field(default_factory=list)
     question: str = ""
 
@@ -50,9 +51,24 @@ class Requirements:
             window = "靠窗" if self.window_preference else "非靠窗"
             parts.append(("必須" if self.window_required else "偏好") + window)
         if self.table_name:
-            parts.append(("限定" if self.table_required else "偏好") + self.table_name)
+            parts.append(("須包含" if self.table_required else "偏好包含") + self.table_name)
+        if self.allow_split is False:
+            parts.append("不接受分桌")
+        elif self.allow_split is True:
+            parts.append("可分桌")
         parts.extend(self.other_requirements)
         return "、".join(parts)
+
+
+@dataclass(frozen=True)
+class TableAllocation:
+    table_name: str
+    people: int
+    capacity: int
+
+    @property
+    def summary(self) -> str:
+        return f"{self.table_name}｜{self.people} 人／{self.capacity} 人桌"
 
 
 @dataclass
@@ -62,7 +78,10 @@ class CustomerGroup:
     position: Cell | None = (8, 1)
     status: str = "接待中"
     waiting_reason: str = ""
-    table_name: str | None = None
+    allocations: tuple[TableAllocation, ...] = ()
+    next_stop: int = 0
+    remaining_people: int = 0
+    declined_plans: set[str] = field(default_factory=set)
 
 
 @dataclass

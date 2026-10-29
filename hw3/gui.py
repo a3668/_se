@@ -155,7 +155,7 @@ class MapCanvas(QWidget):
                 fill = COLORS["reserved"]
             elif table.status == OCCUPIED:
                 fill = COLORS["occupied"]
-            selected = simulation.proposed is not None and simulation.proposed.table_name == table.name
+            selected = simulation.proposed is not None and table.name in simulation.proposed.table_names
             painter.setPen(QPen(QColor(COLORS["robot"] if selected else COLORS["table_edge"]), 2.5 if selected else 1))
             painter.setBrush(QColor(fill))
             padding = scale * 0.1
@@ -220,7 +220,8 @@ class MapCanvas(QWidget):
         group = simulation.group
         if group is not None and group.position is not None:
             marker(group.position, "G", COLORS["customer"])
-            size = str(group.requirements.party_size) if group.requirements.party_size else "?"
+            size = (str(group.remaining_people) if group.allocations
+                    else str(group.requirements.party_size) if group.requirements.party_size else "?")
             x, y = group.position
             # Keep the count label inside the map, including along its right edge.
             label_x = x + 1 if x < restaurant.width - 4 else x - 3
@@ -303,6 +304,9 @@ class RestaurantWindow(QMainWindow):
         self.wait_button = QPushButton("繼續等待，接待其他顧客")
         self.wait_button.clicked.connect(simulation.wait_current)
         seating_layout.addWidget(self.wait_button)
+        self.end_button = QPushButton("結束本組")
+        self.end_button.clicked.connect(simulation.end_current)
+        seating_layout.addWidget(self.end_button)
         side.addWidget(seating)
 
         controls, controls_layout = card("模擬控制")
@@ -426,19 +430,25 @@ class RestaurantWindow(QMainWindow):
         target = f"，目標 {simulation.robot.goal}" if simulation.robot.goal is not None else ""
         self.statusBar().showMessage(f"{state}｜機器人 {simulation.robot.position}{target}")
         self.current_group.setText(f"第 {group.number} 組｜{group.requirements.summary()}" if group else "入口待命，請新增顧客。")
+        if group is not None and group.allocations:
+            self.current_group.setText(self.current_group.text() + f"\n尚未入座：{group.remaining_people} 位")
         self.customer_input.setEnabled(simulation.can_chat)
         self.send_button.setEnabled(simulation.can_chat)
         self.retry_button.setEnabled(simulation.can_chat and bool(simulation.last_error))
         self.new_button.setEnabled(simulation.phase == IDLE and group is None)
         self.confirm_button.setEnabled(simulation.phase == CONFIRMING and simulation.proposed is not None)
-        self.wait_button.setEnabled(simulation.can_chat and group is not None and group.requirements.party_size is not None)
+        self.wait_button.setEnabled(simulation.can_wait)
+        self.end_button.setEnabled(simulation.can_end)
         self.ollama_url.setEnabled(not simulation.ai.busy and not simulation.traveling)
         self.ollama_model.setEnabled(not simulation.ai.busy and not simulation.traveling)
         self.pause_button.setText("繼續移動" if simulation.paused else "暫停移動")
         if simulation.proposed:
             self.seat_info.setText(simulation.proposed.reason)
-        elif group and group.table_name:
-            self.seat_info.setText(f"已確認：{group.table_name}\n顧客狀態：{group.status}")
+        elif group and group.allocations:
+            self.seat_info.setText("\n".join(
+                item.summary + (" · 已入座" if index < group.next_stop else " · 保留")
+                for index, item in enumerate(group.allocations)
+            ))
         elif simulation.alternatives:
             self.seat_info.setText("等待選擇替代餐桌或繼續等候。")
         else:
@@ -481,14 +491,16 @@ class RestaurantWindow(QMainWindow):
         dialog = QDialog(self)
         self.alternative_dialog = dialog
         dialog.setWindowTitle("替代座位")
-        dialog.resize(540, 330)
+        dialog.resize(580, 420)
         layout = QVBoxLayout(dialog)
-        layout.addWidget(label("目前沒有符合所有偏好的空桌，是否接受下列替代位置？", wrap=True))
+        layout.addWidget(label("是否接受下列替代位置？", wrap=True))
         choices = QListWidget()
         choices.setWordWrap(True)
         for candidate in candidates:
-            item = QListWidgetItem(candidate.reason)
-            item.setData(Qt.ItemDataRole.UserRole, candidate.table_name)
+            placement = "分散桌位" if candidate.scattered else "同列相鄰" if len(candidate.allocations) > 1 else "單桌"
+            details = "\n".join((candidate.reason, placement, *candidate.misses))
+            item = QListWidgetItem(details)
+            item.setData(Qt.ItemDataRole.UserRole, candidate.key)
             choices.addItem(item)
         choices.setCurrentRow(0)
         layout.addWidget(choices)
