@@ -248,3 +248,4 @@ node_modules/
 
 # HW5 E2E output
 /hw5/tests/e2e/artifacts/
+pic/
