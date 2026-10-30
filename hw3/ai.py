@@ -34,6 +34,10 @@ allow_split 是 true(明確接受分桌)/false(明確拒絕分桌)/null(未表�
 「必須坐同一桌、不要分桌」應設為 false；其他尚未建模的位置限制仍記錄為待釐清條件。
 綜合目前確認的需求及這一輪對話更新欄位，未修改的已知需求必須保留。
 不猜人數。只在缺少人數、需求矛盾、有歧義或特殊條件尚未釐清時，question 放簡短追問。
+已明確表達但容量不足的需求，仍是完整需求，由 Python 說明無法安排。
+例如「我們八位，不要分桌」必須輸出 party_size=8、allow_split=false、other_requirements=[]、
+question=""、reply=""；不得把單桌容量不足記為特殊條件，也不要再次詢問是否可分桌。
+超過全場席位、必要靠窗席位不足也同樣交給 Python 判斷，不自行新增歧義。
 顧客未提靠窗或桌號時就是無偏好，相關欄位填 null，不得主動追問座位偏好。
 例如「我們5位」應回傳 party_size=5、question=""、reply=""，直接交給系統分桌。
 顧客回答了前次問題後，要更新或清空 question。不要詢問「還有其他需求嗎」。
@@ -138,7 +142,10 @@ class RequestThread(QThread):
                         {"role": "user", "content": "上一則格式無法解析，請依 system 規定重傳完整 JSON，不加 Markdown 或說明。"},
                     ])
         except HTTPError as error:
-            detail = error.read().decode("utf-8", errors="replace")[:400]
+            try:
+                detail = error.read().decode("utf-8", errors="replace")[:400]
+            finally:
+                error.close()
             self.error = f"Ollama HTTP {error.code}：{detail}。請確認服務、模型與雲端登入狀態。"
         except (URLError, TimeoutError, OSError) as error:
             self.error = f"無法連接 Ollama 或請求逾時：{error}。請確認服務已啟動後重試。"

@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from datetime import datetime
+from time import monotonic
 from urllib.parse import urlparse
 
-from PySide6.QtCore import QObject, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, QTimer, Qt, Signal, Slot
 
 from ai import OllamaClient, ReceptionResult
 from navigation import astar
+from motion import (EPS, RADIUS, SENSOR_RANGE, body_clear, cell_for, distance,
+                    point_segment_distance, segment_clear, towards, trail_length)
 from restaurant import (
-    FREE, OCCUPIED, RESERVED, Cell, CustomerGroup, Robot, create_restaurant,
+    FREE, OCCUPIED, RESERVED, Cell, CustomerGroup, Pedestrian, Position, Robot, create_restaurant,
 )
 from seating import Candidate, capacity_problem, no_seat_reason, rank_tables, revalidate_plan
 
@@ -41,11 +44,27 @@ class Simulation(QObject):
         self.last_error = ""
         self.pending_text = ""
         self.sequence = 0
+        self.speed = 1.0
+        self.customer_speed = 1.0
+        self.time_scale = 1
+        self.simulated_time = 0.0
+        self.pedestrians: list[Pedestrian] = []
+        self.detected_pedestrians: set[int] = set()
+        self._pedestrian_sequence = 0
+        self.wait_reason = ""
+        self._waiting_customer = False
+        self._blocked_seconds = 0.0
+        self._last_detour = 0.0
+        self._assistance_logged = False
+        self._last_tick = monotonic()
+        self._replan_pending = False
+        self._avoid_people_pending = False
         self.ai = OllamaClient(self)
         self.ai.completed.connect(self._received)
         self.ai.failed.connect(self._failed)
         self.timer = QTimer(self)
-        self.timer.setInterval(300)
+        self.timer.setTimerType(Qt.TimerType.PreciseTimer)
+        self.timer.setInterval(16)
         self.timer.timeout.connect(self._tick)
         self.timer.start()
         self.new_customer()
@@ -53,6 +72,10 @@ class Simulation(QObject):
     @property
     def traveling(self) -> bool:
         return self.phase in (ESCORTING, RETURNING, BLOCKED)
+
+    @property
+    def customer_visual_position(self) -> Position | None:
+        return self.group.position if self.group is not None else None
 
     @property
     def can_chat(self) -> bool:
@@ -98,7 +121,7 @@ class Simulation(QObject):
             self.changed.emit()
             return
         self.sequence += 1
-        self.group = CustomerGroup(self.sequence, position=start)
+        self.group = CustomerGroup(self.sequence, position=start, speed=self.customer_speed)
         self.phase = RECEPTION
         self._clear_offer()
         self._reset_conversation()
@@ -156,8 +179,7 @@ class Simulation(QObject):
         if self.group is None:
             return
         self._clear_offer()
-        candidates = [candidate for candidate in rank_tables(self.restaurant, self.group.requirements)
-                      if candidate.key not in self.group.declined_plans]
+        candidates = rank_tables(self.restaurant, self.group.requirements, self.group.declined_plans)
         exact = [candidate for candidate in candidates if not candidate.requires_consent]
         if exact:
             self.proposed = exact[0]
@@ -210,6 +232,9 @@ class Simulation(QObject):
         self.group.next_stop = 0
         self.group.remaining_people = sum(item.people for item in fresh.allocations)
         self.group.status = ESCORTING
+        self.group.trail = [self.robot.visual_position]
+        self._waiting_customer = False
+        self._set_wait_reason("")
         first_table = self.restaurant.table(fresh.allocations[0].table_name)
         self.robot.goal = first_table.goal
         self.robot.task = ESCORTING
@@ -299,8 +324,7 @@ class Simulation(QObject):
                 continue
             # A newly possible scattered plan still requires consent; it must not
             # cause large groups to wait forever merely because no adjacent set fits.
-            if any(candidate.key not in group.declined_plans
-                   for candidate in rank_tables(self.restaurant, group.requirements)):
+            if rank_tables(self.restaurant, group.requirements, group.declined_plans):
                 self._activate_waiting(group)
                 self._offer_seat()
                 return True
@@ -310,8 +334,16 @@ class Simulation(QObject):
         restaurant = self.restaurant
         if not restaurant.contains(cell) or cell in restaurant.table_cells:
             return
-        if cell == self.robot.position or (self.group is not None and cell == self.group.position):
-            self.log("不可在機器人或顧客當前位置放置障礙物。")
+        positions = [self.robot.visual_position] + [p.position for p in self.pedestrians]
+        if self.customer_visual_position is not None:
+            positions.append(self.customer_visual_position)
+        protected = {self.robot.position}
+        if self.robot.progress > 0 and self.robot.route:
+            protected.add(self.robot.route[0])
+        # Keep new square obstacles clear of entire actor bodies, including at cell boundaries.
+        intersects = any(not body_clear(pos, restaurant, {cell}) for pos in positions)
+        if cell in protected or intersects:
+            self.log("不可在角色目前占用的位置或移動區段放置障礙物。")
         elif cell in restaurant.obstacles:
             restaurant.obstacles.remove(cell)
             self.log(f"移除障礙物 {cell}。")
@@ -323,7 +355,8 @@ class Simulation(QObject):
         self.changed.emit()
 
     def _map_changed(self) -> None:
-        if self.traveling:
+        sensed_change = self._sense()
+        if self.traveling and sensed_change:
             self._plan_route()
         elif self.phase == IDLE:
             self._evaluate_waiting()
@@ -349,15 +382,79 @@ class Simulation(QObject):
 
     def set_paused(self, paused: bool) -> None:
         self.paused = paused
+        self._last_tick = monotonic()
         self.changed.emit()
 
-    def set_speed(self, steps_per_second: int) -> None:
-        self.timer.setInterval(round(1000 / max(1, steps_per_second)))
+    def set_speed(self, metres_per_second: float) -> None:
+        self._last_tick = monotonic()
+        self.speed = max(0.5, min(1.5, metres_per_second))
 
-    def _plan_route(self) -> None:
+    def set_customer_speed(self, speed: float) -> None:
+        self.customer_speed = max(0.5, min(1.5, speed))
+        if self.group is not None:
+            self.group.speed = self.customer_speed
+
+    def set_time_scale(self, scale: int) -> None:
+        if scale not in (1, 2, 4):
+            raise ValueError("模擬倍速只支援 1、2、4 倍")
+        self._last_tick = monotonic()
+        self.time_scale = scale
+
+    def set_customer_stopped(self, stopped: bool) -> None:
+        if self.group is None or self.robot.task != ESCORTING:
+            return
+        self.group.stopped = stopped
+        self.changed.emit()
+
+    def _plan_route(self, avoid_people: bool = False) -> None:
         if self.robot.goal is None:
             return
-        route = astar(self.restaurant, self.robot.position, self.robot.goal)
+        # Finish the current safe segment before replanning from its endpoint.
+        if self.robot.progress > 0:
+            if avoid_people:
+                # A stopped mid-segment robot may retreat to the previous waypoint.
+                # Requiring it to finish a blocked segment would deadlock replanning.
+                start = self.robot.position
+                next_cell = self.robot.route[0]
+                position = self.robot.visual_position
+                others = [p.position for p in self.pedestrians
+                          if p.number in self.detected_pedestrians]
+                if self.customer_visual_position is not None:
+                    others.append(self.customer_visual_position)
+                if segment_clear(position, start, self.restaurant, others):
+                    blocked = set(self.restaurant.known_blocked_cells)
+                    for x in range(self.restaurant.width):
+                        for y in range(self.restaurant.height):
+                            if any(distance((x,y), p) < 1.1 for p in others):
+                                blocked.add((x,y))
+                    blocked.discard(start)
+                    route = astar(self.restaurant, start, self.robot.goal, blocked)
+                    if route is not None:
+                        self.robot.position = next_cell
+                        self.robot.progress = 1.0 - self.robot.progress
+                        self.robot.route = [start] + route[1:]
+                        self._replan_pending = False
+                        self._avoid_people_pending = False
+                        self.log("前方持續受阻，安全退回路點後繞行。")
+                        return
+            self._replan_pending = True
+            self._avoid_people_pending |= avoid_people
+            return
+        avoid_people |= self._avoid_people_pending
+        self._avoid_people_pending = False
+        self._replan_pending = False
+        blocked = set(self.restaurant.known_blocked_cells)
+        if avoid_people:
+            for person in self.pedestrians:
+                if person.number in self.detected_pedestrians:
+                    for x in range(self.restaurant.width):
+                        for y in range(self.restaurant.height):
+                            if distance((x, y), person.position) < 1.1:
+                                blocked.add((x, y))
+            if self.customer_visual_position is not None:
+                blocked.add(cell_for(self.customer_visual_position))
+        blocked.discard(self.robot.position)
+        route = astar(self.restaurant, self.robot.position, self.robot.goal, blocked)
         if route is None:
             self.robot.route = []
             if self.phase != BLOCKED:
@@ -367,23 +464,208 @@ class Simulation(QObject):
             self.robot.route = route[1:]
             self.phase = self.robot.task
             self.log(f"{self.robot.task}路線已規劃，剩餘 {len(self.robot.route)} 格。")
+        self._last_tick = monotonic()
+
+    def _set_wait_reason(self, reason: str) -> None:
+        if reason != self.wait_reason:
+            self.wait_reason = reason
+            if reason:
+                self.log(reason)
+
+    def _sense(self) -> bool:
+        restaurant = self.restaurant
+        position = self.robot.visual_position
+        observed = {cell for cell in restaurant.obstacles | restaurant.known_obstacles
+                    if distance(position, cell) <= SENSOR_RANGE}
+        previous = set(restaurant.known_obstacles)
+        restaurant.known_obstacles.difference_update(observed)
+        restaurant.known_obstacles.update(observed & restaurant.obstacles)
+        self.detected_pedestrians = {p.number for p in self.pedestrians
+                                    if distance(position, p.position) <= SENSOR_RANGE}
+        return previous != restaurant.known_obstacles
+
+    def add_pedestrian(self, start: Cell, goal: Cell) -> bool:
+        if start == goal or not body_clear(start, self.restaurant) or not body_clear(goal, self.restaurant):
+            self.log("行人起終點須為不同的可通行位置。")
+            self.changed.emit()
+            return False
+        positions = [self.robot.visual_position] + [p.position for p in self.pedestrians]
+        if self.customer_visual_position is not None:
+            positions.append(self.customer_visual_position)
+        if any(distance(start, p) < 2 * RADIUS + 0.1 for p in positions):
+            self.log("行人起點距離現有角色太近。")
+            self.changed.emit()
+            return False
+        route = astar(self.restaurant, start, goal)
+        if route is None:
+            self.log("行人起終點之間沒有可通行路線。")
+            self.changed.emit()
+            return False
+        self._pedestrian_sequence += 1
+        self.pedestrians.append(Pedestrian(self._pedestrian_sequence, start, list(route[1:])))
+        self._sense()
+        self.log(f"新增行人 P{self._pedestrian_sequence}：{start} → {goal}。")
+        self.changed.emit()
+        return True
+
+    def clear_pedestrians(self) -> None:
+        self.pedestrians.clear()
+        self._sense()
+        if self.traveling:
+            self._plan_route()
+        self.changed.emit()
+
+    def _move_pedestrians(self, dt: float) -> None:
+        for person in list(self.pedestrians):
+            if not person.route:
+                self.pedestrians.remove(person)
+                continue
+            end = towards(person.position, person.route[0], person.speed * dt)
+            others = [self.robot.visual_position] + [p.position for p in self.pedestrians if p is not person]
+            if self.customer_visual_position is not None:
+                others.append(self.customer_visual_position)
+            if segment_clear(person.position, end, self.restaurant, others):
+                person.position = end
+                if distance(end, person.route[0]) < EPS:
+                    person.route.pop(0)
+                    if not person.route:
+                        self.pedestrians.remove(person)
+
+    def _move_customer(self, dt: float) -> None:
+        group = self.group
+        if group is None or group.position is None or group.stopped or self.robot.task != ESCORTING:
+            return
+        at_table = not self.robot.route and self.robot.position == self.robot.goal
+        remaining = trail_length(group.position, group.trail)
+        # Reach the table alongside the robot without overlapping its body.
+        desired_gap = 2 * RADIUS if at_table else 1.0
+        amount = min(group.speed * dt, max(0.0, remaining - desired_gap))
+        while group.trail and amount > EPS:
+            target = group.trail[0]
+            step = min(amount, distance(group.position, target))
+            end = towards(group.position, target, step)
+            others = [self.robot.visual_position] + [p.position for p in self.pedestrians]
+            if not segment_clear(group.position, end, self.restaurant, others):
+                break
+            group.position = end
+            amount -= step
+            if distance(end, target) < EPS:
+                group.trail.pop(0)
+
+    def _front_person_gap(self) -> float | None:
+        if not self.robot.route:
+            return None
+        start = self.robot.visual_position
+        points = [start]
+        length = 0.0
+        for cell in self.robot.route:
+            length += distance(points[-1], cell)
+            points.append(cell)
+            if length >= 2.5:
+                break
+        gaps = []
+        for person in self.pedestrians:
+            if person.number not in self.detected_pedestrians:
+                continue
+            dx, dy = points[1][0]-start[0], points[1][1]-start[1]
+            if (person.position[0]-start[0])*dx + (person.position[1]-start[1])*dy < -EPS:
+                continue
+            if any(point_segment_distance(person.position, a, b) < 2 * RADIUS + 0.25
+                   for a, b in zip(points, points[1:])):
+                gaps.append(distance(start, person.position) - 2 * RADIUS)
+        return min(gaps) if gaps else None
+
+    def _blocked_for(self, dt: float, reason: str) -> None:
+        self._blocked_seconds += dt
+        self._set_wait_reason("持續受阻，需要人工協助；保留原任務與桌位。"
+                              if self._assistance_logged else reason)
+        if self._blocked_seconds >= 3 and self._blocked_seconds - self._last_detour >= 3:
+            self._last_detour = self._blocked_seconds
+            self._plan_route(avoid_people=True)
+        if self._blocked_seconds >= 10 and not self._assistance_logged:
+            self._assistance_logged = True
+            self._set_wait_reason("持續受阻，需要人工協助；保留原任務與桌位。")
+
+    def _advance(self, dt: float) -> None:
+        self.simulated_time += dt
+        self._move_pedestrians(dt)
+        if self._sense() and self.traveling:
+            self._plan_route()
+        if not self.traveling:
+            return
+        self._move_customer(dt)
+        group = self.group
+        reason = ""
+        if self.robot.task == ESCORTING and group is not None and group.position is not None:
+            gap = trail_length(group.position, group.trail)
+            if group.stopped:
+                reason = "顧客停留，等待顧客。"
+            elif gap > 2.5:
+                self._waiting_customer = True
+            elif gap <= 1.5:
+                self._waiting_customer = False
+            if self._waiting_customer:
+                reason = "顧客落後，等待跟上。"
+        if reason:
+            self._set_wait_reason(reason)
+            return
+        if self.phase == BLOCKED:
+            self._blocked_for(dt, "路線受阻，等待通行。")
+            return
+        if not self.robot.route:
+            if self.robot.position == self.robot.goal:
+                if (self.robot.task == ESCORTING and group is not None and group.position is not None
+                        and trail_length(group.position, group.trail) > 2 * RADIUS + EPS):
+                    self._set_wait_reason("已抵達桌旁，等待顧客到達。")
+                else:
+                    self._set_wait_reason("")
+                    self._arrived()
+            return
+        gap = self._front_person_gap()
+        if gap is not None and gap < 0.5:
+            self._blocked_for(dt, "前方行人接近，停止等待通行。")
+            return
+        speed = self.speed * (0.4 if gap is not None and gap < 1.5 else 1)
+        target = self.robot.route[0]
+        end = towards(self.robot.visual_position, target, speed * dt)
+        others = [p.position for p in self.pedestrians]
+        if self.customer_visual_position is not None:
+            others.append(self.customer_visual_position)
+        if not segment_clear(self.robot.visual_position, end, self.restaurant, others):
+            self._blocked_for(dt, "前方無安全間距，等待通行。")
+            return
+        self._blocked_seconds = self._last_detour = 0.0
+        self._assistance_logged = False
+        self._set_wait_reason("前方行人接近，減速通行。" if speed < self.speed else "")
+        before = self.robot.visual_position
+        self.robot.progress += distance(before, end)
+        if self.robot.task == ESCORTING and group is not None:
+            group.trail.append(end)
+        if distance(end, target) < EPS:
+            self.robot.position = self.robot.route.pop(0)
+            self.robot.progress = 0.0
+            if self._replan_pending:
+                self._plan_route()
+
+    def step(self, real_seconds: float) -> None:
+        """Advance deterministic elapsed time; used by both the timer and tests."""
+        if real_seconds < 0:
+            raise ValueError("經過時間不得為負數")
+        if self.paused:
+            return
+        remaining = real_seconds * self.time_scale
+        while remaining > EPS:
+            dt = min(remaining, 0.02)
+            self._advance(dt)
+            remaining -= dt
+        self.changed.emit()
 
     def _tick(self) -> None:
-        if self.paused or self.phase not in (ESCORTING, RETURNING):
-            return
-        if self.robot.route:
-            next_cell = self.robot.route[0]
-            if next_cell in self.restaurant.blocked_cells:
-                self._plan_route()
-                self.changed.emit()
-                return
-            previous = self.robot.position
-            self.robot.position = self.robot.route.pop(0)
-            if self.robot.task == ESCORTING and self.group is not None:
-                self.group.position = previous
-        if self.robot.position == self.robot.goal:
-            self._arrived()
-        self.changed.emit()
+        now = monotonic()
+        elapsed = min(now - self._last_tick, 0.1)
+        self._last_tick = now
+        if self.traveling or self.pedestrians:
+            self.step(elapsed)
 
     def _arrived(self) -> None:
         if self.robot.task == ESCORTING and self.group is not None:
@@ -409,6 +691,9 @@ class Simulation(QObject):
                 self.phase = RETURNING
                 self._plan_route()
         elif self.robot.task == RETURNING:
+            self._blocked_seconds = self._last_detour = 0.0
+            self._assistance_logged = False
+            self._set_wait_reason("")
             self.robot.task = ""
             self.robot.goal = None
             self.robot.route = []

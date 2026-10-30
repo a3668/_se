@@ -9,14 +9,15 @@ from PySide6.QtGui import (
     QColor, QCloseEvent, QFont, QMouseEvent, QPainter, QPainterPath, QPaintEvent, QPen,
 )
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QFrame, QHBoxLayout, QLabel, QLineEdit,
+    QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QFrame, QHBoxLayout, QLabel, QLineEdit,
     QListWidget, QListWidgetItem, QMainWindow, QPlainTextEdit, QPushButton,
     QScrollArea, QSizePolicy, QSpinBox, QTextBrowser, QVBoxLayout, QWidget,
 )
 
 from ai import DEFAULT_MODEL, DEFAULT_URL
-from restaurant import FREE, OCCUPIED, RESERVED, ROW_SPECS, Cell
+from restaurant import FREE, OCCUPIED, RESERVED, ROW_SPECS, Cell, Position
 from seating import Candidate
+from motion import SENSOR_RANGE, RADIUS
 from simulation import CONFIRMING, IDLE, Simulation
 
 COLORS = {
@@ -37,13 +38,13 @@ QLabel[role="title"] { font-size: 24px; font-weight: 700; }
 QLabel[role="section"] { font-size: 14px; font-weight: 600; }
 QLabel[role="muted"] { color: #6b7d78; font-size: 12px; }
 QLabel[role="badge"] { color: #23736a; background: #e0eee7; padding: 7px 12px; border-radius: 10px; }
-QLineEdit, QComboBox, QSpinBox, QListWidget, QTextBrowser, QPlainTextEdit {
+QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QListWidget, QTextBrowser, QPlainTextEdit {
     background: #ffffff; border: 1px solid #dce5df; border-radius: 6px; padding: 5px;
 }
 QPushButton { background: #edf4ef; border: 1px solid #c8dbcf; border-radius: 6px; padding: 8px; }
 QPushButton:hover { background: #dcece3; }
 QPushButton#confirm { color: white; background: #23736a; border-color: #23736a; }
-QPushButton:disabled, QLineEdit:disabled { color: #8b9991; background: #f1f4f2; border-color: #e1e6e2; }
+QPushButton:disabled, QPushButton#confirm:disabled, QLineEdit:disabled { color: #8b9991; background: #f1f4f2; border-color: #e1e6e2; }
 QStatusBar { background: #e5ede7; color: #45665a; padding: 3px 12px; }
 """
 
@@ -171,7 +172,7 @@ class MapCanvas(QWidget):
         if not route and simulation.proposed is not None:
             route = list(simulation.proposed.path[1:])
         if route:
-            path = QPainterPath(rect(*simulation.robot.position).center())
+            path = QPainterPath(rect(*simulation.robot.visual_position).center())
             for cell in route:
                 path.lineTo(rect(*cell).center())
             pen = QPen(QColor(COLORS["route"]), max(1.5, scale * 0.1))
@@ -180,9 +181,19 @@ class MapCanvas(QWidget):
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.drawPath(path)
 
-        for cell in restaurant.obstacles:
+        robot_center = rect(*simulation.robot.visual_position).center()
+        painter.setPen(QPen(QColor("#76a9a1"), 1, Qt.PenStyle.DashLine))
+        painter.setBrush(QColor(60, 140, 125, 12))
+        painter.drawEllipse(robot_center, SENSOR_RANGE * scale, SENSOR_RANGE * scale)
+
+        for cell in restaurant.obstacles | restaurant.known_obstacles:
             box = rect(*cell).adjusted(scale * 0.12, scale * 0.12, -scale * 0.12, -scale * 0.12)
-            painter.fillRect(box, QColor(COLORS["obstacle"]))
+            known = cell in restaurant.known_obstacles
+            actual = cell in restaurant.obstacles
+            painter.fillRect(box, QColor(COLORS["obstacle"] if known and actual else "#c5ccd0"))
+            if known and not actual:
+                painter.setPen(QPen(QColor("#c28a29"), 2))
+                painter.drawRect(box)
             painter.setPen(QPen(QColor("#ffffff"), 1))
             painter.drawLine(box.topLeft(), box.bottomRight())
             painter.drawLine(box.topRight(), box.bottomLeft())
@@ -209,20 +220,24 @@ class MapCanvas(QWidget):
         text(rect(0, 31, 18, 3), "上方連通通道", table_font * 0.8, COLORS["muted"])
         text(rect(5, 0, 8, 1), "入口 / 接待區", table_font * 0.75, COLORS["robot"], True)
 
-        def marker(cell: Cell, symbol: str, color: str) -> None:
+        def marker(cell: Position, symbol: str, color: str) -> None:
             box = rect(*cell)
             painter.setPen(QPen(QColor("#ffffff"), 1.3))
             painter.setBrush(QColor(color))
-            painter.drawEllipse(box.center(), scale * 0.45, scale * 0.45)
+            painter.drawEllipse(box.center(), scale * RADIUS, scale * RADIUS)
             text(box, symbol, table_font * 0.75, "#ffffff", True)
 
-        marker(simulation.robot.position, "R", COLORS["robot"])
+        for person in simulation.pedestrians:
+            color = "#8e63b5" if person.number in simulation.detected_pedestrians else "#c9bbd5"
+            marker(person.position, "P", color)
+        marker(simulation.robot.visual_position, "R", COLORS["robot"])
         group = simulation.group
-        if group is not None and group.position is not None:
-            marker(group.position, "G", COLORS["customer"])
+        customer_position = simulation.customer_visual_position
+        if group is not None and customer_position is not None:
+            marker(customer_position, "G", COLORS["customer"])
             size = (str(group.remaining_people) if group.allocations
                     else str(group.requirements.party_size) if group.requirements.party_size else "?")
-            x, y = group.position
+            x, y = customer_position
             # Keep the count label inside the map, including along its right edge.
             label_x = x + 1 if x < restaurant.width - 4 else x - 3
             text(rect(label_x, y, 3, 1), f"{size} 人", table_font * 0.7, COLORS["customer"], True)
@@ -262,7 +277,7 @@ class RestaurantWindow(QMainWindow):
         map_frame, map_layout = card("餐廳平面圖")
         self.canvas = MapCanvas(simulation)
         map_layout.addWidget(self.canvas, 1)
-        map_layout.addWidget(label("R 機器人  ·  G 顧客群  ·  金圈：目標點  ·  虛線：路線", "muted", True))
+        map_layout.addWidget(label("R 機器人  ·  G 顧客群  ·  P 行人  ·  金圈：目標點  ·  虛線：路線", "muted", True))
         map_layout.addWidget(label("綠：空閒  ·  黃：保留  ·  灰褐：占用  ·  深灰：障礙物", "muted", True))
         content.addWidget(map_frame, 1)
 
@@ -315,14 +330,61 @@ class RestaurantWindow(QMainWindow):
         self.pause_button.setCheckable(True)
         self.pause_button.toggled.connect(simulation.set_paused)
         motion.addWidget(self.pause_button)
-        motion.addWidget(label("格／秒"))
-        self.speed = QSpinBox()
-        self.speed.setRange(1, 10)
-        self.speed.setValue(3)
+        motion.addWidget(label("公尺／秒"))
+        self.speed = QDoubleSpinBox()
+        self.speed.setRange(0.5, 1.5)
+        self.speed.setSingleStep(0.1)
+        self.speed.setDecimals(1)
+        self.speed.setValue(1.0)
+        self.speed.setAccessibleName("機器人速度")
         self.speed.valueChanged.connect(simulation.set_speed)
         simulation.set_speed(self.speed.value())
         motion.addWidget(self.speed)
         controls_layout.addLayout(motion)
+        following = QHBoxLayout()
+        following.addWidget(label("顧客 公尺／秒"))
+        self.customer_speed = QDoubleSpinBox()
+        self.customer_speed.setRange(0.5, 1.5)
+        self.customer_speed.setSingleStep(0.1)
+        self.customer_speed.setDecimals(1)
+        self.customer_speed.setValue(1.0)
+        self.customer_speed.setAccessibleName("顧客速度")
+        self.customer_speed.valueChanged.connect(simulation.set_customer_speed)
+        following.addWidget(self.customer_speed)
+        self.time_scale = QComboBox()
+        self.time_scale.setAccessibleName("模擬倍速")
+        for value in (1, 2, 4):
+            self.time_scale.addItem(f"{value} 倍", value)
+        self.time_scale.currentIndexChanged.connect(
+            lambda _: simulation.set_time_scale(self.time_scale.currentData()))
+        following.addWidget(self.time_scale)
+        controls_layout.addLayout(following)
+        self.customer_stop = QPushButton("顧客停留")
+        self.customer_stop.setCheckable(True)
+        self.customer_stop.toggled.connect(simulation.set_customer_stopped)
+        controls_layout.addWidget(self.customer_stop)
+        self.motion_reason = label("", "muted", True)
+        controls_layout.addWidget(self.motion_reason)
+        controls_layout.addWidget(label("感測半徑 4 m｜深色：已發現｜淺色：未發現｜金框：記憶位置", "muted", True))
+        person_controls = QHBoxLayout()
+        self.person_start = QLineEdit("4, 8")
+        self.person_goal = QLineEdit("6, 8")
+        self.person_start.setAccessibleName("行人起點")
+        self.person_goal.setAccessibleName("行人終點")
+        self.person_start.setPlaceholderText("起點 x,y")
+        self.person_goal.setPlaceholderText("終點 x,y")
+        person_controls.addWidget(self.person_start)
+        person_controls.addWidget(label("→"))
+        person_controls.addWidget(self.person_goal)
+        controls_layout.addLayout(person_controls)
+        person_actions = QHBoxLayout()
+        self.add_person = QPushButton("新增行人")
+        self.add_person.clicked.connect(self._add_pedestrian)
+        self.clear_people = QPushButton("清除行人")
+        self.clear_people.clicked.connect(simulation.clear_pedestrians)
+        person_actions.addWidget(self.add_person)
+        person_actions.addWidget(self.clear_people)
+        controls_layout.addLayout(person_actions)
         self.edit_obstacles = QCheckBox("障礙物編輯：點擊空白格新增／移除")
         self.edit_obstacles.toggled.connect(self._set_edit_mode)
         controls_layout.addWidget(self.edit_obstacles)
@@ -410,6 +472,18 @@ class RestaurantWindow(QMainWindow):
         self.canvas.editing_obstacles = enabled
         self.canvas.setCursor(Qt.CursorShape.CrossCursor if enabled else Qt.CursorShape.ArrowCursor)
 
+    def _add_pedestrian(self) -> None:
+        try:
+            start = tuple(int(value.strip()) for value in self.person_start.text().split(","))
+            goal = tuple(int(value.strip()) for value in self.person_goal.text().split(","))
+            if len(start) != 2 or len(goal) != 2:
+                raise ValueError
+        except ValueError:
+            self.simulation.log("行人座標請使用 x,y 格式，例如 4,8。")
+            self.simulation.changed.emit()
+            return
+        self.simulation.add_pedestrian(start, goal)
+
     def _release(self) -> None:
         if self.occupied_tables.currentText():
             self.simulation.release_table(self.occupied_tables.currentText())
@@ -426,9 +500,17 @@ class RestaurantWindow(QMainWindow):
         simulation, group = self.simulation, self.simulation.group
         self.canvas.update()
         state = simulation.phase + (" · 已暫停移動" if simulation.paused else "")
+        self.motion_reason.setText(simulation.wait_reason or "依目前感測資訊行動。")
+        following = group is not None and simulation.robot.task == "帶位中"
+        self.customer_stop.setEnabled(following)
+        self.customer_stop.blockSignals(True)
+        self.customer_stop.setChecked(bool(group and group.stopped))
+        self.customer_stop.setText("恢復跟隨" if group and group.stopped else "顧客停留")
+        self.customer_stop.blockSignals(False)
         self.badge.setText(state)
         target = f"，目標 {simulation.robot.goal}" if simulation.robot.goal is not None else ""
-        self.statusBar().showMessage(f"{state}｜機器人 {simulation.robot.position}{target}")
+        x, y = simulation.robot.visual_position
+        self.statusBar().showMessage(f"{state}｜機器人 ({x:.2f}, {y:.2f}){target}")
         self.current_group.setText(f"第 {group.number} 組｜{group.requirements.summary()}" if group else "入口待命，請新增顧客。")
         if group is not None and group.allocations:
             self.current_group.setText(self.current_group.text() + f"\n尚未入座：{group.remaining_people} 位")

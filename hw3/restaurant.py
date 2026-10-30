@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import cached_property
 
 Cell = tuple[int, int]
+Position = tuple[float, float]
 FREE, RESERVED, OCCUPIED = "空閒", "保留", "占用"
 ROW_SPECS = (("A", 0, 4, 4), ("B", 7, 6, 6), ("C", 14, 4, 13))
 
@@ -75,13 +77,24 @@ class TableAllocation:
 class CustomerGroup:
     number: int
     requirements: Requirements = field(default_factory=Requirements)
-    position: Cell | None = (8, 1)
+    position: Position | None = (8, 1)
     status: str = "接待中"
     waiting_reason: str = ""
     allocations: tuple[TableAllocation, ...] = ()
     next_stop: int = 0
     remaining_people: int = 0
     declined_plans: set[str] = field(default_factory=set)
+    speed: float = 1.0
+    stopped: bool = False
+    trail: list[Position] = field(default_factory=list)
+
+
+@dataclass
+class Pedestrian:
+    number: int
+    position: Position
+    route: list[Position]
+    speed: float = 1.0
 
 
 @dataclass
@@ -90,6 +103,15 @@ class Robot:
     goal: Cell | None = None
     route: list[Cell] = field(default_factory=list)
     task: str = ""
+    progress: float = 0.0
+
+    @property
+    def visual_position(self) -> Position:
+        if not self.route:
+            return self.position
+        x, y = self.position
+        nx, ny = self.route[0]
+        return (x + (nx - x) * self.progress, y + (ny - y) * self.progress)
 
 
 @dataclass
@@ -105,14 +127,19 @@ class RestaurantMap:
     upper_passage_rows: tuple[int, int] = (31, 33)
     tables: list[Table] = field(default_factory=list)
     obstacles: set[Cell] = field(default_factory=set)
+    known_obstacles: set[Cell] = field(default_factory=set)
 
-    @property
+    @cached_property
     def table_cells(self) -> frozenset[Cell]:
         return frozenset(cell for table in self.tables for cell in table.occupied_cells)
 
     @property
     def blocked_cells(self) -> frozenset[Cell]:
         return self.table_cells | self.obstacles
+
+    @property
+    def known_blocked_cells(self) -> frozenset[Cell]:
+        return self.table_cells | self.known_obstacles
 
     def contains(self, cell: Cell) -> bool:
         return 0 <= cell[0] < self.width and 0 <= cell[1] < self.height

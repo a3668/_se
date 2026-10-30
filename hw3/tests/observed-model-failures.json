@@ -1,0 +1,25 @@
+{
+  "description": "初次真實串接觀察到的兩次容量誤分類；修正提示後，同情境三輪通過。只含合成需求。",
+  "failures": [
+    {
+      "input": "我們八位，不要分桌",
+      "model": "gpt-oss:120b-cloud",
+      "party_size": 8,
+      "allow_split": false,
+      "other_requirements": [
+        "單桌最多容納6位，無法滿足8位不分桌需求"
+      ],
+      "question": "很抱歉，我們目前的單一桌最多只能容納6位，請問您是否願意改為分桌？"
+    },
+    {
+      "input": "我們八位，不要分桌",
+      "model": "gpt-oss:120b-cloud",
+      "party_size": 8,
+      "allow_split": false,
+      "other_requirements": [
+        "cannot seat 8 people at a single table"
+      ],
+      "question": "抱歉，我們的單一桌最多只能容納6位，若您不要分桌將無法安排，請問您是否願意接受分桌？"
+    }
+  ]
+}

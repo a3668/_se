@@ -107,7 +107,7 @@ class _Planner:
     def route(self, start: Cell, goal: Cell) -> tuple[Cell, ...] | None:
         key = (start, goal)
         if key not in self.cache:
-            path = astar(self.restaurant, start, goal)
+            path = astar(self.restaurant, start, goal, self.restaurant.known_blocked_cells)
             self.cache[key] = tuple(path) if path is not None else None
             self.cache[(goal, start)] = tuple(reversed(path)) if path is not None else None
         return self.cache[key]
@@ -180,7 +180,8 @@ def _modes(tables: list[Table], requirements: Requirements, miss_count: int) -> 
             yield sorted(pool, key=lambda table: (-table.capacity, table.name)), required
 
 
-def rank_tables(restaurant: RestaurantMap, requirements: Requirements) -> list[Candidate]:
+def rank_tables(restaurant: RestaurantMap, requirements: Requirements,
+                excluded: set[str] | None = None) -> list[Candidate]:
     if not requirements.ready or capacity_problem(restaurant, requirements):
         return []
     size = requirements.party_size
@@ -215,6 +216,8 @@ def rank_tables(restaurant: RestaurantMap, requirements: Requirements) -> list[C
                         if len(_misses(tables, requirements)) != miss_count:
                             continue
                         names = ",".join(sorted(table.name for table in tables))
+                        if excluded and names in excluded:
+                            continue
                         if names in seen:
                             continue
                         seen.add(names)

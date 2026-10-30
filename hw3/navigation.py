@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import heapq
+from collections.abc import Collection
 from itertools import count
 
 from restaurant import Cell, RestaurantMap
 
 
-def astar(restaurant: RestaurantMap, start: Cell, goal: Cell) -> list[Cell] | None:
-    blocked = restaurant.blocked_cells
+def astar(restaurant: RestaurantMap, start: Cell, goal: Cell,
+          blocked: Collection[Cell] | None = None) -> list[Cell] | None:
+    blocked = restaurant.blocked_cells if blocked is None else blocked
     if not restaurant.contains(start) or not restaurant.contains(goal):
         return None
     if start in blocked or goal in blocked:
