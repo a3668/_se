@@ -87,6 +87,45 @@ kcurl -L https://example.com/file -o file.bin
 kcurl --max-time 5.5 https://example.com
 ```
 
+## 測試紀錄
+
+### 自動化測試
+
+專案提供 `test.sh`，需要 Bash、Cargo 與 Python 3。在 `hw1` 目錄執行：
+
+```bash
+./test.sh
+```
+
+腳本會先編譯專案中的 kcurl，再啟動臨時的本機 HTTP 伺服器，檢查請求方法、自訂標頭、資料傳送、重新導向、檔案下載、逾時與錯誤處理等功能。每項檢查會輸出 `PASS` 或 `FAIL`，最後列出通過與失敗數量；全部通過時結束碼為 0，有失敗時為 1。
+
+### 取得本機網頁
+
+向本機執行中的 React／Vite 服務發送 GET 請求：
+
+```bash
+kcurl http://127.0.0.1:6060
+```
+
+實際輸出節錄（省略部分 head 內容）：
+
+```html
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    ...
+    <title>AI 智慧餐廳帶位機器人</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+```
+
+結果：成功取得本機服務回傳的 HTML 內容。
+
 ## 行為說明
 
 - 預設只輸出回應本文，不額外加入換行；本文以原始位元組串流輸出，支援二進位檔案。
@@ -100,8 +139,6 @@ kcurl --max-time 5.5 https://example.com
 - HTTP 4xx／5xx 仍輸出回應並以 0 結束，方便讀取伺服器的錯誤內容。
 - 連線、逾時、重新導向、讀取或寫入失敗以 1 結束；參數錯誤以 2 結束。標準輸出管線被下游關閉時以 0 結束。
 - 錯誤訊息輸出到標準錯誤，不混入回應內容。
-
-目前未提供檔案上傳、Cookie 儲存、Basic Auth 專用參數、代理伺服器專用參數與下載進度。reqwest 預設的環境變數／系統代理設定仍適用。
 
 ## 使用的套件
 

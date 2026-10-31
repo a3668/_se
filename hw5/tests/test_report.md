@@ -1,40 +1,16 @@
 # hw5 測試結果報告
 
-本報告保留先前單元測試與系統測試的結果，並新增 2026-10-25 的 E2E 執行紀錄。本次開始實作前，`hw5` 沒有未提交的變更；本次新增 E2E 與測試文件，未修改應用程式、單元測試或系統測試。各批次結果分別記錄，後續修改相關程式或測試後，須重新執行才能更新結果。
-
 ## 結果總覽
 
-以下指令皆在 `hw5` 目錄執行。
+| 測試類型 | 通過 | 失敗 |
+| --- | --- | --- |
+| Rust Server 單元測試 | 42 | 0 |
+| Web API 系統測試 | 477 項檢查 | 0 |
+| 無頭 Playwright E2E | 37 | 0 |
 
-| 測試類型 | 執行指令 | 實際結果 | 退出碼 |
-| --- | --- | --- | --- |
-| Rust Server 單元測試 | `cargo test --test unit` | 先前紀錄：42 通過、0 失敗、0 忽略；本次未重跑 | 0（先前） |
-| Web API 系統測試 | `bash tests/api/test.sh` | 先前紀錄：477 項檢查通過、0 失敗；本次未重跑 | 0（先前） |
-| 無頭 Playwright E2E | `bash tests/e2e/test.sh` | 本次：37 通過、0 失敗、0 略過、0 flaky | 0 |
+三次執行的退出碼皆為 0。
 
-## 1. Rust Server 單元測試（先前結果）
-
-### 執行指令與原始摘要
-
-```bash
-cargo test --test unit
-```
-
-```text
-test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
-```
-
-### 涵蓋範圍
-
-- [unit/assembler.rs](unit/assembler.rs)：13 項，涵蓋暫存器別名、支援指令的機器碼與控制訊號、標籤、分支 offset、跳躍位址、立即數與位移量邊界，以及非法語法與指令數上限。
-- [unit/simulation.rs](unit/simulation.rs)：29 項，涵蓋運算、記憶體、五級管線、forwarding、load-use stall、store-data forwarding、同 cycle 的 WB／ID、branch、flush、jump、迴圈動態 ID、cycle 上限、錯誤時的部分紀錄與統計。
-- 只有 `,()` 等分隔符號的輸入會被拒絕，對應的回歸測試通過。
-
-測試由 [unit.rs](unit.rs) 載入，直接呼叫 Rust 核心公開函式；未啟動 HTTP server，也未讀寫 `mips.db`。Client 單元測試未建立、未執行。
-
-### 使用者本機執行的完整輸出
-
-以下為使用者提供的 `cargo test --test unit` 執行結果。
+## 1. Rust Server 單元測試
 
 ```text
 cargo test --test unit
@@ -88,40 +64,7 @@ test simulation::arithmetic_logic_comparisons_and_shifts ... ok
 test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
-## 2. Web API 系統測試（先前結果）
-
-### 執行指令與原始摘要
-
-```bash
-bash tests/api/test.sh
-```
-
-```text
-結果：477/477 通過，0 失敗
-```
-
-### 涵蓋範圍
-
-- 健康檢查、初始空清單、未知 API 與不支援的 HTTP method。
-- 程式新增、查詢、更新、刪除及未完成草稿的儲存。
-- `completed`、`error`、`limit` 模擬的建立、完整快照讀取、摘要一致性與紀錄刪除。
-- 名稱、程式文字大小、JSON 格式、Content-Type、未知欄位、組譯、初始設定與 cycle 限制；被拒絕的建立請求不新增紀錄。
-- 更新程式後舊快照不變；刪除程式後保留快照，且 `program_id` 清為 null。
-- 重啟後端後仍可讀回程式與三種狀態的完整快照。
-- 不存在的 ID、重複刪除，以及兩種清單的排序與最近 100 筆限制。
-
-477 項為 [api/test.sh](api/test.sh) 統計的檢查數，包含 HTTP 狀態、JSON 斷言與大量建立清單資料時的檢查，不代表 477 個獨立操作流程，也不與單元測試數量合併計算。
-
-### 執行環境與清理
-
-- 腳本編譯並啟動真實 Rust 後端，使用 curl 發送 HTTP 請求，以 Python 標準函式庫解析 JSON。
-- 使用 `127.0.0.1:18080` 與臨時 SQLite 資料庫，透過獨立的 `SERVER_ADDR`、`DATABASE_PATH` 設定隔離。
-- 先前該次腳本正常結束，退出碼為 0，並執行清理程序，關閉腳本啟動的後端及刪除臨時資料。
-- 該次系統測試未使用開發用 `mips.db`，也未啟動前端或瀏覽器。
-
-### 使用者本機執行的完整輸出
-
-以下為使用者提供的 `bash tests/api/test.sh` 執行結果。
+## 2. Web API 系統測試
 
 ```text
 bash tests/api/test.sh
@@ -412,27 +355,11 @@ bash tests/api/test.sh
 
 ## 3. 無頭 Playwright E2E
 
-### 本次執行與原始摘要
-
-- 日期與開始時間：2026-10-25 23:33:02，Asia/Taipei（使用者本機執行）。
-- 工作目錄：`hw5`。
-- Chromium 無頭模式，`channel: 'chromium'`；1 worker，重試次數 0。
-
-```bash
-bash tests/e2e/test.sh
-```
-
 ```text
 Running 37 tests using 1 worker
 37 passed (23.3s)
 E2E 結束，退出碼 0；測試服務與臨時資料已清理。
 ```
-
-23.3 秒為 Playwright runner 的時間，不含前置編譯。結果依使用者提供的終端輸出與本機最新 JSON 更新；JSON 統計為 expected 37、unexpected 0、skipped 0、flaky 0。各案例另檢查瀏覽器 `pageerror`，本輪沒有未處理的頁面 JavaScript 錯誤。
-
-### 逐項執行結果
-
-以下依本次 `e2e/artifacts/results.json` 記錄，列出完整測試名稱與實際耗時。
 
 | # | 測試項目 | 結果 | 耗時 |
 | --- | --- | --- | --- |
@@ -473,39 +400,3 @@ E2E 結束，退出碼 0；測試服務與臨時資料已清理。
 | 35 | 長迴圈的 18 欄視窗與不同動態 ID | 通過 | 485 ms |
 | 36 | 暫存器初值、負數與記憶體末頁 | 通過 | 1056 ms |
 | 37 | 機器狀態的寫回與記憶體邊緣前後值 | 通過 | 657 ms |
-
-### 環境版本
-
-| 工具 | 版本 |
-| --- | --- |
-| 作業系統 | macOS 26.0.1，arm64 |
-| Node.js / npm | 24.14.0 / 11.9.0 |
-| Rust / Cargo | 1.99.0 / 1.99.0 |
-| Playwright | 1.64.1 |
-| Chromium | 156.0.8078.4，revision 1248 |
-| E2E TypeScript / Node 型別 | 7.0.2 / 26.6.5 |
-
-本輪腳本中的 `cargo build`、前端 `npm run build`（包含前端型別檢查），以及 E2E `npm run typecheck` 均成功。
-
-### 實際涵蓋結果
-
-| 案例群組 | 結果 | 涵蓋內容 |
-| --- | --- | --- |
-| [simulation.spec.ts](e2e/simulation.spec.ts) | 14 / 14 通過 | 初始工作台、四個教學範例的具體暫存器／記憶體結果、逐 cycle 與時間軸、播放速度／暫停／結尾、縮放上下界、Control Unit 解碼與邊緣、stall／forwarding／flush、18 欄視窗與動態 ID、自訂初值、記憶體末頁、機器狀態邊緣前後值 |
-| [history.spec.ts](e2e/history.spec.ts) | 8 / 8 通過 | 程式新增／更新／重新整理後載入、未完成草稿、取代確認取消／接受、編輯保留舊快照、重新執行建立新結果、重新整理後回放、刪程式保留快照、刪除目前紀錄與清空播放、歷史重新整理 |
-| [errors.spec.ts](e2e/errors.spec.ts) | 15 / 15 通過 | 11 種無效輸入不新增紀錄、修正輸入後可再執行、執行期記憶體錯誤／溢位及回放、cycle 上限及回放、連線失敗後重新連上真實 API |
-
-四個範例分別確認 forwarding 範例的記憶體結果 17 與 stall 1、branch 的錯誤路徑無副作用與 flush 2、迴圈累加結果 15，以及 jump/link 的結果 12 與 `$ra = 8`。這些結果由瀏覽器讀取畫面斷言。
-
-### 執行隔離與清理
-
-- Rust 同時提供編譯後的前端與真實 API，未啟動 Vite。
-- 使用 `127.0.0.1:18082` 和 `mktemp` 建立的臨時 SQLite，未使用開發用 `mips.db`。
-- 每個案例建立新的瀏覽器 context，透過真實 API 清理臨時資料庫內的測試資料；核心流程透過介面輸入、執行、儲存與回放。
-- 播放速度案例使用 Playwright Clock；離線案例暫時攔截 API 請求，解除後連接真實後端。未以假成功回應取代模擬或資料儲存。
-- 最終腳本正常結束，退出碼為 0，完成關閉本次後端與刪除臨時資料庫的清理程序。
-- 產物保留於 `e2e/artifacts/results.json`、`e2e/artifacts/html/index.html` 與 `e2e/artifacts/server.log`，均不納入 Git；失敗時另外保留可取得的 trace、screenshot 與錯誤上下文。
-
-本次未發現需要修正的明確產品缺陷，未修改 Rust 或 React 應用程式。結果範圍為目前 macOS 上的 Chromium 無頭模式，未執行 Firefox、WebKit、畫面像素比對或效能測試。
-
-詳細執行步驟請參考 [README.md](README.md)。
