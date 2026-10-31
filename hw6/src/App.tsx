@@ -50,7 +50,7 @@ function Reception({ s, catalog }: { s: Simulation; catalog: OllamaModelCatalog 
         placeholder={s.traveling ? '帶位完成後可接待下一組' : s.phase === IDLE ? '請先接待下一組顧客' : '例如：我們五位，希望靠窗'} autoComplete="off" />
         <button className="send-button" disabled={!s.canChat || !catalog.canSubmit || !text.trim()} type="submit" aria-label="送出需求" title="送出需求"><Send size={17} /></button></div>
       {!catalog.canSubmit && <p className={`model-required ${catalog.status === 'error' ? 'error' : ''}`} role="status">
-        {catalog.status === 'loading' ? '正在取得模型清單…' : '請至「連線設定」載入並選擇模型後送出。'}
+        {catalog.status === 'loading' ? '正在載入模型…' : '請至「模型」選擇模型後送出。'}
       </p>}
       <div className="form-actions"><span>Enter 送出需求</span><div>
         {s.lastError && <button type="button" className="text-button" disabled={!s.canChat || !catalog.canSubmit} onClick={() => { setText(s.pendingText); void submit(s.pendingText); }}><RotateCcw size={13} />重試</button>}
@@ -75,7 +75,7 @@ function Reception({ s, catalog }: { s: Simulation; catalog: OllamaModelCatalog 
 
 type Tab = 'controls' | 'queue' | 'events' | 'settings';
 const tabs = [{ id: 'controls', label: '模擬控制', icon: SlidersHorizontal }, { id: 'queue', label: '候位名單', icon: ListOrdered },
-  { id: 'events', label: '事件紀錄', icon: Activity }, { id: 'settings', label: '連線設定', icon: Settings2 }] as const;
+  { id: 'events', label: '事件紀錄', icon: Activity }, { id: 'settings', label: '模型', icon: Settings2 }] as const;
 
 function ControlPanels({ s, catalog }: { s: Simulation; catalog: OllamaModelCatalog }) {
   const { settings } = catalog;
@@ -118,18 +118,16 @@ function ControlPanels({ s, catalog }: { s: Simulation; catalog: OllamaModelCata
       </>}
       {tab === 'queue' && <div className="queue-list">{!s.waiting.length ? <EmptyState icon={<Users size={27} />}>目前沒有候位顧客<br />選擇繼續等待的顧客會保留在這裡</EmptyState> : <><p className="panel-note">依到店順序，優先接待能安排整組的顧客。</p>{s.waiting.map(group => <div className="queue-item" key={group.number}><div className="queue-number">{String(group.number).padStart(2, '0')}</div><div><strong>第 {group.number} 組 · {group.requirements.party_size ?? '?'} 位</strong><p>{requirementsSummary(group.requirements)}</p><small>{group.waitingReason}</small></div><button className="button subtle small" disabled={s.phase !== IDLE} onClick={() => s.resumeWaiting(group.number)}>接待／修改<ArrowUpRight size={13} /></button></div>)}</>}</div>}
       {tab === 'events' && <div className="event-list" aria-label="事件紀錄">{!s.events.length ? <EmptyState icon={<Activity size={25} />}>尚無事件紀錄</EmptyState> : [...s.events].reverse().map(event => <div className="event-row" key={event.id}><time>{event.time}</time><span>{event.text}</span></div>)}</div>}
-      {tab === 'settings' && <div className="settings-form"><label htmlFor="ollama-url">Ollama 服務位址</label><input id="ollama-url" type="url" value={settings.baseUrl} disabled={s.busy} onChange={e => catalog.changeBaseUrl(e.target.value)} placeholder="http://localhost:11434" spellCheck={false} />
+      {tab === 'settings' && <div className="settings-form">
         <label htmlFor="ollama-model">模型</label><div className="model-select-row">
-          <select id="ollama-model" value={settings.model} disabled={s.busy || catalog.status !== 'ready' || !catalog.models.length} onChange={e => catalog.selectModel(e.target.value)} aria-describedby="ollama-model-status">
-            <option value="" disabled>{catalog.status === 'loading' ? '載入中…' : catalog.status === 'error' ? '清單載入失敗' : catalog.status === 'idle' ? '請先載入模型' : !catalog.models.length ? '無可用模型' : '請選擇模型'}</option>
+          <select id="ollama-model" value={settings.model} disabled={s.busy} onPointerDown={() => { void catalog.reload(); }} onKeyDown={event => {
+            if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) void catalog.reload();
+          }} onChange={e => catalog.selectModel(e.target.value)} aria-describedby="ollama-model-status">
+            <option value="" disabled>{catalog.status === 'loading' ? '載入中…' : catalog.status === 'error' ? '清單載入失敗' : !catalog.models.length ? '無可用模型' : '請選擇模型'}</option>
             {catalog.models.map(model => <option key={model} value={model}>{model}</option>)}
           </select>
-          <button className="button subtle small" type="button" disabled={s.busy || catalog.status === 'loading'} onClick={() => { void catalog.reload(); }} aria-describedby="ollama-model-status">
-            <RotateCcw size={13} />{catalog.status === 'loading' ? '載入中' : catalog.status === 'idle' ? '載入模型' : '重新載入'}
-          </button>
         </div><p id="ollama-model-status" className={`model-status ${catalog.status === 'error' || (catalog.status === 'ready' && !catalog.models.length) ? 'error' : ''}`} role="status">{catalog.statusMessage}</p>
-        <div className="settings-note"><CircleHelp size={16} /><p>請自行啟動 Ollama。開啟頁面只查詢模型清單，送出需求時才生成回答。切換模型會保留本組對話與需求；雲端模型需先完成 Ollama 登入。</p></div>
-        <span className="local-badge"><span className="live-dot" />本機執行 · 重新整理後重置</span></div>}
+      </div>}
     </div>
   </section>;
 }
@@ -170,7 +168,7 @@ export default function App() {
   const reserved = s.restaurant.tables.filter(t => t.status === RESERVED).length;
   const occupied = s.restaurant.tables.filter(t => t.status === OCCUPIED).length;
   return <div className="app-shell">
-    <header className="app-header"><div className="brand"><span className="brand-mark"><Bot size={26} strokeWidth={1.7} /></span><div><div className="brand-title">席間<span>AI 餐廳帶位控制台</span></div><p>RESTAURANT ROBOT · SIMULATION LAB</p></div></div>
+    <header className="app-header"><div className="brand"><span className="brand-mark"><Bot size={26} strokeWidth={1.7} /></span><div><div className="brand-title">AI 智慧餐廳帶位機器人</div><p>RESTAURANT ROBOT · SIMULATION LAB</p></div></div>
       <div className="header-right"><span className="project-label">HW / 06</span><span className={`status-badge ${s.phase === THINKING ? 'is-thinking' : s.phase === '受阻' ? 'is-blocked' : ''}`} role="status"><span className="live-dot" />{s.phase}{s.paused && ' · 已暫停'}</span></div></header>
     <main><section className="overview-bar" aria-label="餐廳概況"><div className="overview-intro"><span className="eyebrow">FLOOR OVERVIEW</span><h1>讓每一位顧客，都有好位置。</h1></div>
       <div className="overview-stats"><div><span className="stat-label"><Utensils size={14} />空閒餐桌</span><strong>{free.length}<small> / 21</small></strong></div><div><span className="stat-label">保留／占用</span><strong>{reserved}<small> / </small>{occupied}</strong></div><div><span className="stat-label"><Users size={14} />候位組數</span><strong>{s.waiting.length}<small> 組</small></strong></div><div><span className="stat-label">可用席位</span><strong>{free.reduce((sum, t) => sum + t.capacity, 0)}<small> / 98</small></strong></div></div></section>

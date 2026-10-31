@@ -37,7 +37,7 @@ export async function requestModels(baseUrl: string, signal: AbortSignal): Promi
     });
   } catch (error) {
     if (signal.aborted) throw error;
-    if (error instanceof DOMException && error.name === 'TimeoutError') throw new Error('取得模型清單逾時，請重新載入。');
+    if (error instanceof DOMException && error.name === 'TimeoutError') throw new Error('取得模型清單逾時，請再次展開選單。');
     throw new Error('無法連接本機代理取得模型清單，請確認網頁服務仍在執行。');
   }
   const data = await readEnvelope(response);

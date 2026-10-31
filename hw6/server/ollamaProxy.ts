@@ -37,9 +37,9 @@ async function listModels(target: URL, clientSignal: AbortSignal): Promise<strin
     return [...new Set(items.map(item => (item.name as string).trim()))];
   } catch (error) {
     if (clientSignal.aborted || error instanceof RequestError) throw error;
-    const message = timeout.aborted ? '取得 Ollama 模型清單逾時，請重新載入。'
+    const message = timeout.aborted ? '取得 Ollama 模型清單逾時，請再次展開選單。'
       : error instanceof SyntaxError ? 'Ollama 傳回的模型清單格式不正確。'
-      : '無法連接 Ollama 取得模型清單，請確認服務與連線設定。';
+      : '無法取得模型清單，請確認 Ollama 已啟動後再次展開選單。';
     throw new RequestError(message, timeout.aborted ? 504 : 502, 'MODEL_LIST_UNAVAILABLE');
   }
 }
@@ -94,7 +94,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, endpoint: 'chat
     });
     if (!upstream.ok) {
       const detail = (await upstream.text()).slice(0, 400);
-      if (upstream.status === 404) throw new RequestError(`Ollama 找不到模型 ${selectedModel}，請重新載入清單並選擇模型。`, 400, 'MODEL_NOT_AVAILABLE');
+      if (upstream.status === 404) throw new RequestError(`Ollama 找不到模型 ${selectedModel}，請選擇其他模型。`, 400, 'MODEL_NOT_AVAILABLE');
       throw new RequestError(`Ollama HTTP ${upstream.status}：${detail}。請確認模型與雲端登入狀態。`, 502);
     }
     const result = await upstream.json();

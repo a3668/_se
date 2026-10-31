@@ -226,15 +226,9 @@ input:hover:not(:disabled), select:hover:not(:disabled) { border-color: #a3b9a9;
 .settings-form input { font-size: 11px; padding: 9px 10px; margin-bottom: 13px; }
 .model-select-row { display: flex; align-items: center; gap: 8px; }
 .model-select-row select { width: 0; flex: 1; font-size: 11px; padding: 9px 10px; text-overflow: ellipsis; }
-.model-select-row .button { flex-shrink: 0; }
 .model-status { font-size: 10px; color: #748565; line-height: 1.7; margin: 7px 0 12px; overflow-wrap: anywhere; }
 .model-status.error, .model-required.error { color: #a17437; }
 .model-required { font-size: 10px; color: #879777; line-height: 1.6; margin-top: 7px; }
-.settings-note { display: flex; align-items: flex-start; gap: 8px; padding: 9px 11px; background: #f4f7ed; border-radius: 7px; color: #92a080; }
-.settings-note p { font-size: 10px; line-height: 1.8; }
-.settings-note svg { margin-top: 3px; }
-.local-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 9px; color: #a6b394; margin-top: 13px; }
-.local-badge .live-dot { width: 4px; height: 4px; }
 .app-footer { display: flex; justify-content: space-between; align-items: center; min-height: 51px; color: #99a58d; font-size: 9px; letter-spacing: .4px; }
 .app-footer > span { display: flex; align-items: center; gap: 7px; }
 .app-footer .live-dot { height: 4px; width: 4px; background: #a4b294; }

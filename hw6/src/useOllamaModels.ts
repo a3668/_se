@@ -22,19 +22,20 @@ export function useOllamaModels(busy: boolean) {
   locked.current = busy;
 
   const reload = useCallback(async () => {
-    if (locked.current) return;
-    request.current?.abort();
+    if (locked.current || request.current) return;
     const controller = new AbortController(); request.current = controller;
-    const { baseUrl, model } = current.current.settings;
-    const wanted = model || preferred.current;
-    setState(previous => ({ ...previous, settings: { ...previous.settings, model: '' }, models: [], status: 'loading', error: '' }));
+    const { baseUrl } = current.current.settings;
+    setState(previous => ({ ...previous, status: 'loading', error: '' }));
     try {
       const models = await requestModels(baseUrl, controller.signal);
       if (controller.signal.aborted || request.current !== controller) return;
-      setState(previous => ({ ...previous, settings: { ...previous.settings, model: models.includes(wanted) ? wanted : '' }, models, status: 'ready', error: '' }));
+      setState(previous => {
+        const wanted = previous.settings.model || preferred.current;
+        return { ...previous, settings: { ...previous.settings, model: models.includes(wanted) ? wanted : '' }, models, status: 'ready', error: '' };
+      });
     } catch (error) {
       if (controller.signal.aborted || request.current !== controller) return;
-      setState(previous => ({ ...previous, models: [], status: 'error', error: error instanceof Error ? error.message : '無法取得模型清單，請重新載入。' }));
+      setState(previous => ({ ...previous, status: 'error', error: error instanceof Error ? error.message : '無法取得模型清單，請再次展開選單。' }));
     } finally {
       if (request.current === controller) request.current = null;
     }
@@ -45,36 +46,36 @@ export function useOllamaModels(busy: boolean) {
     const leave = () => {
       if (!request.current) return;
       request.current.abort(); request.current = null;
-      setState(previous => ({ ...previous, status: 'idle', models: [], settings: { ...previous.settings, model: '' } }));
+      setState(previous => ({ ...previous, status: previous.models.length ? 'ready' : 'idle' }));
     };
+    const resume = (event: PageTransitionEvent) => { if (event.persisted) void reload(); };
     window.addEventListener('pagehide', leave);
-    return () => { request.current?.abort(); request.current = null; window.removeEventListener('pagehide', leave); };
+    window.addEventListener('pageshow', resume);
+    return () => {
+      request.current?.abort(); request.current = null;
+      window.removeEventListener('pagehide', leave); window.removeEventListener('pageshow', resume);
+    };
   }, [reload]);
 
-  function changeBaseUrl(baseUrl: string) {
-    if (locked.current) return;
-    request.current?.abort(); request.current = null; preferred.current = '';
-    setState({ settings: { baseUrl, model: '' }, models: [], status: 'idle', error: '' });
-  }
   function selectModel(model: string) {
-    if (locked.current || current.current.status !== 'ready' || !current.current.models.includes(model)) return;
+    if (locked.current || !current.current.models.includes(model)) return;
     preferred.current = model;
     setState(previous => ({ ...previous, settings: { ...previous.settings, model } }));
   }
   function invalidateSelection(rejectedModel: string) {
     if (current.current.settings.model !== rejectedModel) return;
     request.current?.abort(); request.current = null;
-    setState(previous => ({ ...previous, settings: { ...previous.settings, model: '' }, models: [], status: 'error',
-      error: '選擇的模型已不在 Ollama 清單中，請重新載入清單並選擇模型。' }));
+    preferred.current = '';
+    setState(previous => ({ ...previous, settings: { ...previous.settings, model: '' }, models: previous.models.filter(model => model !== rejectedModel), status: 'error',
+      error: '模型無法使用，請選擇其他模型。' }));
   }
-  const canSubmit = state.status === 'ready' && state.models.includes(state.settings.model);
-  const statusMessage = state.status === 'loading' ? '正在取得 Ollama 模型清單…'
+  const canSubmit = state.models.includes(state.settings.model);
+  const statusMessage = state.status === 'loading' ? '正在載入模型…'
     : state.status === 'error' ? state.error
-    : state.status === 'idle' ? '請載入目前服務的模型清單。'
-    : !state.models.length ? 'Ollama 模型清單為空，請加入模型後重新載入。'
-    : !state.settings.model ? '請選擇模型；不會自動改用其他模型。'
-    : `已選擇 ${state.settings.model}，下一筆需求將使用此模型。`;
-  return { ...state, canSubmit, statusMessage, reload, changeBaseUrl, selectModel, invalidateSelection };
+    : state.status === 'idle' ? '請展開選單載入模型。'
+    : !state.models.length ? 'Ollama 沒有可用模型。'
+    : !state.settings.model ? '請選擇模型。' : '';
+  return { ...state, canSubmit, statusMessage, reload, selectModel, invalidateSelection };
 }
 
 export type OllamaModelCatalog = ReturnType<typeof useOllamaModels>;
