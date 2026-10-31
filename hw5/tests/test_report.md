@@ -8,16 +8,9 @@
 | Web API 系統測試 | 477 項檢查 | 0 |
 | 無頭 Playwright E2E | 37 | 0 |
 
-三次執行的退出碼皆為 0。
-
 ## 1. Rust Server 單元測試
 
 ```text
-cargo test --test unit
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
-     Running tests/unit.rs (target/debug/deps/unit-4d235e6177663246)
-
-running 42 tests
 test assembler::labels_comments_text_and_source_line_numbers ... ok
 test assembler::branch_and_jump_encodings_and_control_signals ... ok
 test assembler::nop_has_no_side_effect_control_signals ... ok
@@ -61,16 +54,12 @@ test simulation::signed_overflow_stops_without_committing_the_result ... ok
 test simulation::wb_is_visible_to_id_in_the_same_cycle ... ok
 test simulation::arithmetic_logic_comparisons_and_shifts ... ok
 
-test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 ```
 
 ## 2. Web API 系統測試
 
 ```text
-bash tests/api/test.sh
-[1] 編譯 Rust 後端
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.03s
-[2] 啟動獨立後端與臨時資料庫
   OK  健康檢查（HTTP 200）
   OK  健康檢查內容為 OK
   OK  programs 初始清單（HTTP 200）
@@ -356,47 +345,45 @@ bash tests/api/test.sh
 ## 3. 無頭 Playwright E2E
 
 ```text
-Running 37 tests using 1 worker
-37 passed (23.3s)
-E2E 結束，退出碼 0；測試服務與臨時資料已清理。
+37 passed
 ```
 
-| # | 測試項目 | 結果 | 耗時 |
-| --- | --- | --- | --- |
-| 1 | 拒絕輸入：未知暫存器 | 通過 | 714 ms |
-| 2 | 拒絕輸入：zero 非零 | 通過 | 546 ms |
-| 3 | 拒絕輸入：重複暫存器別名 | 通過 | 546 ms |
-| 4 | 拒絕輸入：32-bit 數值超界 | 通過 | 549 ms |
-| 5 | 拒絕輸入：記憶體未對齊 | 通過 | 528 ms |
-| 6 | 拒絕輸入：記憶體超界 | 通過 | 525 ms |
-| 7 | 拒絕輸入：設定格式錯誤 | 通過 | 534 ms |
-| 8 | 拒絕輸入：不支援偽指令 | 通過 | 564 ms |
-| 9 | 拒絕輸入：超過 20 條指令 | 通過 | 590 ms |
-| 10 | 拒絕輸入：空程式名稱 | 通過 | 534 ms |
-| 11 | 拒絕輸入：cycle 上限不合法 | 通過 | 540 ms |
-| 12 | 執行期記憶體錯誤保存部分紀錄且可回放 | 通過 | 607 ms |
-| 13 | 執行期 signed overflow保存部分紀錄且可回放 | 通過 | 591 ms |
-| 14 | cycle 上限保存部分紀錄且可回放 | 通過 | 537 ms |
-| 15 | 暫時無法連線後可重新連上真實 API | 通過 | 575 ms |
-| 16 | 程式新增、更新與重新整理後載入 | 通過 | 728 ms |
-| 17 | 未完成語法可存為草稿，執行時顯示組譯錯誤 | 通過 | 472 ms |
-| 18 | 新程式的取代確認可取消或接受 | 通過 | 489 ms |
-| 19 | 載入範例與已存程式的取代確認 | 通過 | 644 ms |
-| 20 | 編輯保留舊快照，重新執行建立新的結果 | 通過 | 846 ms |
-| 21 | 重新整理後回放，以及放棄編輯的取消與確認 | 通過 | 785 ms |
-| 22 | 刪除程式保留快照，取消刪除及刪除目前紀錄 | 通過 | 901 ms |
-| 23 | 歷史重新整理取得其他連線儲存的資料 | 通過 | 414 ms |
-| 24 | 初始工作台、空歷史與未執行控制 | 通過 | 383 ms |
-| 25 | 教學範例：Forwarding & load-use | 通過 | 432 ms |
-| 26 | 教學範例：Branch & flush | 通過 | 412 ms |
-| 27 | 教學範例：Loop & dependencies | 通過 | 423 ms |
-| 28 | 教學範例：Jump & link | 通過 | 429 ms |
-| 29 | 逐 cycle、時間軸、起點與結尾邊界 | 通過 | 612 ms |
-| 30 | 播放速度、暫停與自動停止 | 通過 | 622 ms |
-| 31 | Datapath 縮放上下界與重設 | 通過 | 984 ms |
-| 32 | Control Unit 解碼、階段選擇與管線暫存器邊緣 | 通過 | 705 ms |
-| 33 | load-use 的 stall、forwarding 訊號與時序定位 | 通過 | 717 ms |
-| 34 | branch 的 flush 訊號與取消指令標記 | 通過 | 520 ms |
-| 35 | 長迴圈的 18 欄視窗與不同動態 ID | 通過 | 485 ms |
-| 36 | 暫存器初值、負數與記憶體末頁 | 通過 | 1056 ms |
-| 37 | 機器狀態的寫回與記憶體邊緣前後值 | 通過 | 657 ms |
+| # | 測試項目 | 結果 |
+| --- | --- | --- |
+| 1 | 拒絕輸入：未知暫存器 | 通過 |
+| 2 | 拒絕輸入：zero 非零 | 通過 |
+| 3 | 拒絕輸入：重複暫存器別名 | 通過 |
+| 4 | 拒絕輸入：32-bit 數值超界 | 通過 |
+| 5 | 拒絕輸入：記憶體未對齊 | 通過 |
+| 6 | 拒絕輸入：記憶體超界 | 通過 |
+| 7 | 拒絕輸入：設定格式錯誤 | 通過 |
+| 8 | 拒絕輸入：不支援偽指令 | 通過 |
+| 9 | 拒絕輸入：超過 20 條指令 | 通過 |
+| 10 | 拒絕輸入：空程式名稱 | 通過 |
+| 11 | 拒絕輸入：cycle 上限不合法 | 通過 |
+| 12 | 執行期記憶體錯誤保存部分紀錄且可回放 | 通過 |
+| 13 | 執行期 signed overflow保存部分紀錄且可回放 | 通過 |
+| 14 | cycle 上限保存部分紀錄且可回放 | 通過 |
+| 15 | 暫時無法連線後可重新連上真實 API | 通過 |
+| 16 | 程式新增、更新與重新整理後載入 | 通過 |
+| 17 | 未完成語法可存為草稿，執行時顯示組譯錯誤 | 通過 |
+| 18 | 新程式的取代確認可取消或接受 | 通過 |
+| 19 | 載入範例與已存程式的取代確認 | 通過 |
+| 20 | 編輯保留舊快照，重新執行建立新的結果 | 通過 |
+| 21 | 重新整理後回放，以及放棄編輯的取消與確認 | 通過 |
+| 22 | 刪除程式保留快照，取消刪除及刪除目前紀錄 | 通過 |
+| 23 | 歷史重新整理取得其他連線儲存的資料 | 通過 |
+| 24 | 初始工作台、空歷史與未執行控制 | 通過 |
+| 25 | 教學範例：Forwarding & load-use | 通過 |
+| 26 | 教學範例：Branch & flush | 通過 |
+| 27 | 教學範例：Loop & dependencies | 通過 |
+| 28 | 教學範例：Jump & link | 通過 |
+| 29 | 逐 cycle、時間軸、起點與結尾邊界 | 通過 |
+| 30 | 播放速度、暫停與自動停止 | 通過 |
+| 31 | Datapath 縮放上下界與重設 | 通過 |
+| 32 | Control Unit 解碼、階段選擇與管線暫存器邊緣 | 通過 |
+| 33 | load-use 的 stall、forwarding 訊號與時序定位 | 通過 |
+| 34 | branch 的 flush 訊號與取消指令標記 | 通過 |
+| 35 | 長迴圈的 18 欄視窗與不同動態 ID | 通過 |
+| 36 | 暫存器初值、負數與記憶體末頁 | 通過 |
+| 37 | 機器狀態的寫回與記憶體邊緣前後值 | 通過 |

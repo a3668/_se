@@ -42,3 +42,5 @@ lw sw beq bne j jal jr nop
 ```
 
 支援標籤、十進位與十六進位，以及 `#`、`;` 註解。除 `nop` 外不支援偽指令。
+
+測試說明見 [tests/README.md](tests/README.md)。
