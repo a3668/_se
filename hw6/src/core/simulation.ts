@@ -1,4 +1,4 @@
-import { requestReception, type ChatMessage, type OllamaSettings } from './ai';
+import { OllamaApiError, requestReception, type ChatMessage, type OllamaSettings } from './ai';
 import { astar } from './navigation';
 import { EPS, RADIUS, SENSOR_RANGE, bodyClear, cellFor, distance, pointSegmentDistance, segmentClear, towards, trailLength } from './motion';
 import { FREE, OCCUPIED, RESERVED, Restaurant, Robot, createGroup, fromKey, key, ready, requirementsSummary, same,
@@ -27,6 +27,7 @@ export class Simulation {
   events: EventEntry[] = [];
   conversationVersion = 0;
   lastError = '';
+  lastErrorCode = '';
   pendingText = '';
   speed = 1;
   customerSpeed = 1;
@@ -68,7 +69,7 @@ export class Simulation {
   }
   private clearOffer() { this.proposed = null; this.alternatives = []; this.alternativeAccepted = false; }
   private resetConversation() {
-    this.history = []; this.messages = []; this.lastError = ''; this.pendingText = ''; this.conversationVersion++;
+    this.history = []; this.messages = []; this.lastError = ''; this.lastErrorCode = ''; this.pendingText = ''; this.conversationVersion++;
   }
   newCustomer() {
     if (this.phase !== IDLE || this.group || this.busy) return;
@@ -91,7 +92,7 @@ export class Simulation {
     if (!(this.lastError && text === this.pendingText)) {
       this.history.push({ role: 'user', content: text }); this.messages.push({ speaker: '顧客', text });
     }
-    this.pendingText = text; this.lastError = ''; this.clearOffer(); this.phase = THINKING;
+    this.pendingText = text; this.lastError = ''; this.lastErrorCode = ''; this.clearOffer(); this.phase = THINKING;
     const controller = new AbortController(); this.request = controller; this.changed();
     try {
       const result = await requestReception(settings, this.history, this.group.requirements, controller.signal);
@@ -106,6 +107,7 @@ export class Simulation {
       if (controller.signal.aborted) return false;
       this.phase = RECEPTION;
       this.lastError = error instanceof Error ? error.message : '接待失敗，請重試。';
+      this.lastErrorCode = error instanceof OllamaApiError ? error.code ?? '' : '';
       this.messages.push({ speaker: '系統', text: this.lastError }); this.log(this.lastError);
       return false;
     } finally {
