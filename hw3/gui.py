@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from html import escape
 
-from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QColor, QCloseEvent, QFont, QMouseEvent, QPainter, QPainterPath, QPaintEvent, QPen,
 )
@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QScrollArea, QSizePolicy, QSpinBox, QTextBrowser, QVBoxLayout, QWidget,
 )
 
-from ai import DEFAULT_MODEL, DEFAULT_URL
+from ai import DEFAULT_MODEL, DEFAULT_URL, ModelListThread
 from restaurant import FREE, OCCUPIED, RESERVED, ROW_SPECS, Cell, Position
 from seating import Candidate
 from motion import SENSOR_RANGE, RADIUS
@@ -65,6 +65,25 @@ def card(title: str) -> tuple[QFrame, QVBoxLayout]:
     layout.setSpacing(9)
     layout.addWidget(label(title, "section"))
     return frame, layout
+
+
+class ModelComboBox(QComboBox):
+    opened = Signal()
+    closed = Signal()
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.popup_open = False
+
+    def showPopup(self) -> None:
+        self.opened.emit()
+        self.popup_open = self.count() > 0
+        super().showPopup()
+
+    def hidePopup(self) -> None:
+        super().hidePopup()
+        self.popup_open = False
+        self.closed.emit()
 
 
 class MapCanvas(QWidget):
@@ -251,6 +270,9 @@ class RestaurantWindow(QMainWindow):
         super().__init__()
         self.simulation = simulation
         self.close_pending = False
+        self.model_worker: ModelListThread | None = None
+        self.pending_models: list[str] | None = None
+        self.preferred_model = DEFAULT_MODEL
         self.alternative_dialog: QDialog | None = None
         self.waiting_snapshot: tuple = ()
         self.events_snapshot: tuple = ()
@@ -412,15 +434,16 @@ class RestaurantWindow(QMainWindow):
         queue_layout.addWidget(self.resume_button)
         side.addWidget(queue)
 
-        settings, settings_layout = card("Ollama 設定")
-        self.ollama_url = QLineEdit(DEFAULT_URL)
-        self.ollama_url.setPlaceholderText("http://localhost:11434")
-        self.ollama_url.setToolTip("Ollama 服務位址")
-        self.ollama_model = QLineEdit(DEFAULT_MODEL)
+        settings, settings_layout = card("模型")
+        self.ollama_model = ModelComboBox()
+        self.ollama_model.setPlaceholderText("正在載入模型…")
         self.ollama_model.setToolTip("模型名稱")
-        settings_layout.addWidget(self.ollama_url)
+        self.ollama_model.opened.connect(self._load_models)
+        self.ollama_model.closed.connect(self.refresh)
+        self.ollama_model.currentTextChanged.connect(self._model_selected)
         settings_layout.addWidget(self.ollama_model)
-        settings_layout.addWidget(label("請先自行啟動 Ollama；設定於下一筆需求送出時使用。", "muted", True))
+        self.model_status = label("", "muted", True)
+        settings_layout.addWidget(self.model_status)
         side.addWidget(settings)
         side.addStretch()
         scroll = QScrollArea()
@@ -448,12 +471,58 @@ class RestaurantWindow(QMainWindow):
         for message in simulation.history:
             self._message("顧客" if message["role"] == "user" else "接待", message["content"])
         self.refresh()
+        QTimer.singleShot(0, self._load_models)
+
+    @Slot()
+    def _load_models(self) -> None:
+        if self.close_pending or self.model_worker is not None or self.simulation.ai.busy:
+            return
+        self.model_status.setText("正在更新模型清單…")
+        self.model_worker = ModelListThread(self)
+        self.model_worker.finished.connect(self._models_loaded)
+        self.model_worker.start()
+
+    @Slot()
+    def _models_loaded(self) -> None:
+        worker = self.model_worker
+        self.model_worker = None
+        if worker is not None:
+            if worker.models is not None:
+                self.pending_models = worker.models
+                self.model_status.setText("" if worker.models else "Ollama 沒有可用模型。")
+            else:
+                self.model_status.setText(worker.error)
+                self.ollama_model.setPlaceholderText("無法取得模型")
+            worker.deleteLater()
+        self.refresh()
+        self._close_if_pending()
+
+    def _model_selected(self, model: str) -> None:
+        if model:
+            self.preferred_model = model
+        self.refresh()
+
+    def _apply_models(self) -> None:
+        if self.pending_models is None or self.ollama_model.popup_open or self.simulation.ai.busy:
+            return
+        models, self.pending_models = self.pending_models, None
+        previous = self.ollama_model.currentText() or self.preferred_model
+        existing = [self.ollama_model.itemText(i) for i in range(self.ollama_model.count())]
+        if models != existing:
+            self.ollama_model.blockSignals(True)
+            self.ollama_model.clear()
+            self.ollama_model.addItems(models)
+            self.ollama_model.setCurrentIndex(models.index(previous) if previous in models else -1)
+            self.ollama_model.blockSignals(False)
+        self.ollama_model.setPlaceholderText("請選擇模型" if models else "無可用模型")
 
     def _send(self) -> None:
-        self.simulation.submit(self.customer_input.text(), self.ollama_url.text(), self.ollama_model.text())
+        if self.ollama_model.currentIndex() >= 0:
+            self.simulation.submit(self.customer_input.text(), DEFAULT_URL, self.ollama_model.currentText())
 
     def _retry(self) -> None:
-        self.simulation.submit(self.simulation.pending_text, self.ollama_url.text(), self.ollama_model.text())
+        if self.ollama_model.currentIndex() >= 0:
+            self.simulation.submit(self.simulation.pending_text, DEFAULT_URL, self.ollama_model.currentText())
 
     def _request_finished(self, succeeded: bool) -> None:
         if succeeded:
@@ -497,6 +566,7 @@ class RestaurantWindow(QMainWindow):
         self.resume_button.setEnabled(self.simulation.phase == IDLE and self.waiting_list.currentItem() is not None)
 
     def refresh(self) -> None:
+        self._apply_models()
         simulation, group = self.simulation, self.simulation.group
         self.canvas.update()
         state = simulation.phase + (" · 已暫停移動" if simulation.paused else "")
@@ -515,13 +585,13 @@ class RestaurantWindow(QMainWindow):
         if group is not None and group.allocations:
             self.current_group.setText(self.current_group.text() + f"\n尚未入座：{group.remaining_people} 位")
         self.customer_input.setEnabled(simulation.can_chat)
-        self.send_button.setEnabled(simulation.can_chat)
-        self.retry_button.setEnabled(simulation.can_chat and bool(simulation.last_error))
+        has_model = self.ollama_model.currentIndex() >= 0
+        self.send_button.setEnabled(simulation.can_chat and has_model)
+        self.retry_button.setEnabled(simulation.can_chat and has_model and bool(simulation.last_error))
         self.new_button.setEnabled(simulation.phase == IDLE and group is None)
         self.confirm_button.setEnabled(simulation.phase == CONFIRMING and simulation.proposed is not None)
         self.wait_button.setEnabled(simulation.can_wait)
         self.end_button.setEnabled(simulation.can_end)
-        self.ollama_url.setEnabled(not simulation.ai.busy and not simulation.traveling)
         self.ollama_model.setEnabled(not simulation.ai.busy and not simulation.traveling)
         self.pause_button.setText("繼續移動" if simulation.paused else "暫停移動")
         if simulation.proposed:
@@ -612,7 +682,7 @@ class RestaurantWindow(QMainWindow):
         dialog.open()
 
     def closeEvent(self, event: QCloseEvent) -> None:
-        if self.simulation.ai.busy:
+        if self.simulation.ai.busy or self.model_worker is not None:
             self.close_pending = True
             self.simulation.timer.stop()
             self.setEnabled(False)

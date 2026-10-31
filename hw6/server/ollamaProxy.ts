@@ -70,9 +70,8 @@ async function handle(req: IncomingMessage, res: ServerResponse, endpoint: 'chat
     try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
     catch { throw new RequestError('請求 JSON 無法解析。'); }
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw new RequestError('請求必須為 JSON 物件。');
-    const tagsTarget = targetUrl(body.baseUrl, 'tags');
     if (endpoint === 'models') {
-      const models = await listModels(tagsTarget, controller.signal);
+      const models = await listModels(targetUrl(body.baseUrl, 'tags'), controller.signal);
       if (!res.destroyed) {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         res.end(JSON.stringify({ models }));
@@ -86,12 +85,7 @@ async function handle(req: IncomingMessage, res: ServerResponse, endpoint: 'chat
           return !['system', 'user', 'assistant'].includes(String(m.role)) || typeof m.content !== 'string';
         })) throw new RequestError('Ollama 位址、模型或訊息格式錯誤。');
     const selectedModel = body.model.trim();
-    const models = await listModels(tagsTarget, controller.signal);
-    if (!models.includes(selectedModel)) {
-      throw new RequestError('選擇的模型已不在 Ollama 清單中，請重新載入清單並選擇模型。', 400, 'MODEL_NOT_AVAILABLE');
-    }
     if (controller.signal.aborted) return;
-    // Model discovery has its own five-second deadline. Generation retains 120 seconds.
     timer = setTimeout(() => controller.abort(), 120_000);
     const upstream = await fetch(targetUrl(body.baseUrl, 'chat'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' },

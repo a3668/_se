@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 from dataclasses import asdict, dataclass
 from urllib.error import HTTPError, URLError
@@ -13,8 +12,8 @@ from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 from restaurant import Requirements
 
-DEFAULT_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "gpt-oss:120b-cloud")
+DEFAULT_URL = "http://localhost:11434"
+DEFAULT_MODEL = "gpt-oss:120b-cloud"
 REQUEST_TIMEOUT = 120
 
 SYSTEM_PROMPT = """你是餐廳文字接待員，使用繁體中文，負責理解需求和追問，不負責分桌。
@@ -105,6 +104,32 @@ def parse_result(content: str) -> ReceptionResult:
     if others and not requirements.question:
         requirements.question = "目前尚無法保證這些特殊條件，是否可以取消這些條件？"
     return ReceptionResult(requirements, requirements.question)
+
+
+class ModelListThread(QThread):
+    def __init__(self, parent: QObject) -> None:
+        super().__init__(parent)
+        self.models: list[str] | None = None
+        self.error = ""
+
+    def run(self) -> None:
+        try:
+            with urlopen(DEFAULT_URL + "/api/tags", timeout=5) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            items = data.get("models") if isinstance(data, dict) else None
+            if not isinstance(items, list) or any(
+                not isinstance(item, dict) or not isinstance(item.get("name"), str)
+                or not item["name"].strip() for item in items
+            ):
+                raise ValueError("Ollama 模型清單格式錯誤。")
+            self.models = list(dict.fromkeys(item["name"].strip() for item in items))
+        except HTTPError as error:
+            self.error = f"無法取得模型清單（HTTP {error.code}）。"
+            error.close()
+        except (URLError, TimeoutError, OSError):
+            self.error = "無法取得模型清單，請確認 Ollama 已啟動後再次展開選單。"
+        except (ValueError, UnicodeError):
+            self.error = "Ollama 模型清單格式錯誤。"
 
 
 class RequestThread(QThread):
