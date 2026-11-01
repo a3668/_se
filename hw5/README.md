@@ -43,4 +43,28 @@ lw sw beq bne j jal jr nop
 
 支援標籤、十進位與十六進位，以及 `#`、`;` 註解。除 `nop` 外不支援偽指令。
 
-測試說明見 [tests/README.md](tests/README.md)。
+自動化測試包含單元測試、系統測試（Web API）與 E2E 測試（無頭 Playwright），執行方式與結果見 [tests/README.md](tests/README.md)。
+
+## 畫面展示
+
+以下圖片展示這三條指令在 Cycle 1–7 的管線資料路徑：
+
+```asm
+addi $8, $0, 1    # $8 = 1
+addi $9, $0, 2    # $9 = 2
+add  $10, $8, $9  # $10 = 3
+```
+
+![Cycle 1 管線資料路徑](hw5-pic/1.png)
+
+![Cycle 2 管線資料路徑](hw5-pic/2.png)
+
+![Cycle 3 管線資料路徑](hw5-pic/3.png)
+
+![Cycle 4 管線資料路徑](hw5-pic/4.png)
+
+![Cycle 5 管線資料路徑](hw5-pic/5.png)
+
+![Cycle 6 管線資料路徑](hw5-pic/6.png)
+
+![Cycle 7 管線資料路徑](hw5-pic/7.png)
