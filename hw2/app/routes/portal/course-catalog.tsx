@@ -104,7 +104,6 @@ export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
       <header className="course-catalog-heading">
         <p className="portal-kicker">Course catalog</p>
         <h1>課程資料查詢</h1>
-        <p>以下為 {semester} 示範開課資料，非來源學校的正式課表。</p>
       </header>
       <Form key={JSON.stringify([semester, department, grade])} className="course-catalog-filters" method="get" action="/query/class-data">
         <input type="hidden" name="search" value="1" />
