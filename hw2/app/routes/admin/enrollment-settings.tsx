@@ -5,7 +5,7 @@ import { data, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/enrollment-settings";
 import { requireAdmin } from "../../lib/admin-auth.server";
 import { ADMIN_ENROLLMENT_SETTINGS_PATH } from "../../lib/admin-paths";
-import { ACTIVE_SEMESTER } from "../../lib/enrollments.server";
+import { getActiveSemester, withCurrentSemester } from "../../lib/semester-settings.server";
 import { getEnrollmentSettings, saveEnrollmentOpenGrades } from "../../lib/enrollment-settings.server";
 
 export function meta() {
@@ -14,22 +14,26 @@ export function meta() {
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireAdmin(request);
+  const semester = getActiveSemester();
   return {
-    ...getEnrollmentSettings(ACTIVE_SEMESTER), semester: ACTIVE_SEMESTER,
+    ...getEnrollmentSettings(semester), semester,
     saved: new URL(request.url).searchParams.has("saved"),
   };
 }
 
 export async function action({ request }: Route.ActionArgs) {
   await requireAdmin(request);
+  if (request.method !== "POST") throw new Response("Method Not Allowed", { status: 405 });
+  const origin = request.headers.get("Origin");
+  if (origin && origin !== new URL(request.url).origin) throw new Response("Forbidden", { status: 403 });
   const formData = await request.formData();
   if (formData.get("intent") !== "save") throw new Response("Bad Request", { status: 400 });
-  const error = saveEnrollmentOpenGrades(ACTIVE_SEMESTER, formData.get("mode"), formData.getAll("grade"));
+  const error = withCurrentSemester(formData.get("originalSemester"), (semester) => saveEnrollmentOpenGrades(semester, formData.get("mode"), formData.getAll("grade")));
   if (error) return data({ error }, { status: 400 });
   return redirect(`${ADMIN_ENROLLMENT_SETTINGS_PATH}?saved=1`);
 }
 
-function GradeSelection({ grades, openGrades }: { grades: number[]; openGrades: number[] }) {
+function GradeSelection({ grades, openGrades, semester }: { grades: number[]; openGrades: number[]; semester: string }) {
   const [selected, setSelected] = useState(openGrades);
   const [mode, setMode] = useState<"closed" | "all" | "selected">(
     !openGrades.length ? "closed" : grades.length && grades.every((grade) => openGrades.includes(grade)) ? "all" : "selected",
@@ -37,6 +41,7 @@ function GradeSelection({ grades, openGrades }: { grades: number[]; openGrades: 
   const navigation = useNavigation();
   return (
     <FormPanel className="admin-enrollment-form" method="post">
+      <InputControl type="hidden" name="originalSemester" value={semester} />
       <fieldset disabled={navigation.state !== "idle"}>
         <legend>開放方式</legend>
         <RadioGroup className="admin-enrollment-modes" name="mode" value={mode}>
@@ -74,7 +79,7 @@ export default function EnrollmentSettings({ loaderData, actionData }: Route.Com
       <p>目前狀態：{!currentOpenGrades.length ? "全校關閉" : currentOpenGrades.length === grades.length ? "全年級開放" : `開放 ${currentOpenGrades.join("、")} 年級`}</p>
       {saved && !actionData?.error ? <StatusMessage role="status" severity="success">設定已儲存並生效。</StatusMessage> : null}
       {actionData?.error ? <StatusMessage className="admin-form-error" role="alert">{actionData.error}</StatusMessage> : null}
-      <GradeSelection key={JSON.stringify([grades, openGrades])} grades={grades} openGrades={openGrades} />
+      <GradeSelection semester={semester} key={JSON.stringify([semester, grades, openGrades])} grades={grades} openGrades={openGrades} />
     </section>
   );
 }

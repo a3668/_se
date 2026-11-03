@@ -1,7 +1,7 @@
 import { getDatabase } from "./db.server";
 import { ENROLLMENT_CLOSED_MESSAGE, isStudentEnrollmentOpen } from "./enrollment-settings.server";
 
-export const ACTIVE_SEMESTER = "115-1";
+import { compareSemesters, getActiveSemester, getOfferingSemesters, SEMESTER_CHANGED_MESSAGE } from "./semester-settings.server";
 
 type OfferingRow = {
   offering_id: number;
@@ -71,20 +71,22 @@ function schedulesConflict(a: CourseSchedule[], b: CourseSchedule[]) {
   ));
 }
 
-export function getSemesterOptions() {
-  const semesters = (getDatabase().prepare("SELECT DISTINCT semester FROM course_offerings ORDER BY semester DESC").all() as { semester: string }[]).map((r) => r.semester);
-  if (!semesters.includes(ACTIVE_SEMESTER)) semesters.push(ACTIVE_SEMESTER);
-  return semesters;
+export function getSemesterOptions(currentAndPastOnly = false) {
+  const activeSemester = getActiveSemester();
+  const semesters = getOfferingSemesters();
+  if (!semesters.includes(activeSemester)) semesters.push(activeSemester);
+  return semesters.filter((semester) => !currentAndPastOnly || compareSemesters(semester, activeSemester) <= 0)
+    .sort((a, b) => compareSemesters(b, a));
 }
 
-export function getSemesterFilter(request: Request) {
-  const semesters = getSemesterOptions();
-  const semester = new URL(request.url).searchParams.get("semester") || ACTIVE_SEMESTER;
+export function getSemesterFilter(request: Request, currentAndPastOnly = false) {
+  const semesters = getSemesterOptions(currentAndPastOnly);
+  const semester = new URL(request.url).searchParams.get("semester") || getActiveSemester();
   if (!semesters.includes(semester)) throw new Response("Bad Request", { status: 400 });
   return { semester, semesters };
 }
 
-export function getStudentOfferingGrades(semester = ACTIVE_SEMESTER) {
+export function getStudentOfferingGrades(semester = getActiveSemester()) {
   const rows = getDatabase().prepare(
     `SELECT DISTINCT c.grade FROM course_offerings o
      JOIN courses c ON c.id = o.course_id
@@ -93,7 +95,7 @@ export function getStudentOfferingGrades(semester = ACTIVE_SEMESTER) {
   return rows.map((row) => row.grade);
 }
 
-export function getStudentOfferingDepartments(semester = ACTIVE_SEMESTER) {
+export function getStudentOfferingDepartments(semester = getActiveSemester()) {
   const rows = getDatabase().prepare(
     `SELECT DISTINCT c.department FROM course_offerings o
      JOIN courses c ON c.id = o.course_id
@@ -102,7 +104,7 @@ export function getStudentOfferingDepartments(semester = ACTIVE_SEMESTER) {
   return rows.map((row) => row.department);
 }
 
-export function getStudentOfferings(studentUserId: number, semester = ACTIVE_SEMESTER) {
+export function getStudentOfferings(studentUserId: number, semester = getActiveSemester()) {
   getStudentDepartment(studentUserId);
   const rows = getDatabase().prepare(
     `SELECT o.id AS offering_id, c.course_code, c.department, c.name, c.grade, c.credits, c.category,
@@ -159,12 +161,17 @@ export function getStudentOfferings(studentUserId: number, semester = ACTIVE_SEM
   return offerings;
 }
 
-export function addEnrollment(studentUserId: number, offeringId: number, withinTransaction = false): string | null {
+export function addEnrollment(studentUserId: number, offeringId: number, withinTransaction = false, originalSemester?: FormDataEntryValue | null): string | null {
   const db = getDatabase();
   if (withinTransaction && !db.isTransaction) throw new Error("Expected an active enrollment transaction");
   if (!withinTransaction) db.exec("BEGIN IMMEDIATE");
   try {
-    if (!isStudentEnrollmentOpen(studentUserId, ACTIVE_SEMESTER)) {
+    const activeSemester = getActiveSemester();
+    if (originalSemester !== undefined && originalSemester !== activeSemester) {
+      if (!withinTransaction) db.exec("ROLLBACK");
+      return SEMESTER_CHANGED_MESSAGE;
+    }
+    if (!isStudentEnrollmentOpen(studentUserId, activeSemester)) {
       if (!withinTransaction) db.exec("ROLLBACK");
       return ENROLLMENT_CLOSED_MESSAGE;
     }
@@ -176,7 +183,7 @@ export function addEnrollment(studentUserId: number, offeringId: number, withinT
     ).get(offeringId) as { capacity: number; semester: string } | undefined;
 
     let error: string | null = null;
-    if (!offering || offering.semester !== ACTIVE_SEMESTER) {
+    if (!offering || offering.semester !== activeSemester) {
       error = "無法加選這門課。";
     } else if (db.prepare(
       "SELECT 1 FROM student_applications WHERE student_user_id = ? AND offering_id = ? AND kind = 'withdraw' AND status = 'approved'",
@@ -202,7 +209,7 @@ export function addEnrollment(studentUserId: number, offeringId: number, withinT
        JOIN course_offerings selected_o ON selected_o.id = e.offering_id
        WHERE candidate.offering_id = ? AND e.student_user_id = ?
          AND selected_o.semester = ? LIMIT 1`,
-    ).get(offeringId, studentUserId, ACTIVE_SEMESTER)) {
+    ).get(offeringId, studentUserId, activeSemester)) {
       error = "這門課與已選課程時段衝突。";
     }
 
@@ -219,11 +226,16 @@ export function addEnrollment(studentUserId: number, offeringId: number, withinT
   }
 }
 
-export function dropEnrollment(studentUserId: number, offeringId: number): string | null {
+export function dropEnrollment(studentUserId: number, offeringId: number, originalSemester: FormDataEntryValue | null): string | null {
   const db = getDatabase();
   db.exec("BEGIN IMMEDIATE");
   try {
-    if (!isStudentEnrollmentOpen(studentUserId, ACTIVE_SEMESTER)) {
+    const activeSemester = getActiveSemester();
+    if (originalSemester !== activeSemester) {
+      db.exec("ROLLBACK");
+      return SEMESTER_CHANGED_MESSAGE;
+    }
+    if (!isStudentEnrollmentOpen(studentUserId, activeSemester)) {
       db.exec("ROLLBACK");
       return ENROLLMENT_CLOSED_MESSAGE;
     }
@@ -239,7 +251,7 @@ export function dropEnrollment(studentUserId: number, offeringId: number): strin
       `DELETE FROM enrollments
        WHERE student_user_id = ? AND offering_id = ?
          AND offering_id IN (SELECT id FROM course_offerings WHERE semester = ?)`,
-    ).run(studentUserId, offeringId, ACTIVE_SEMESTER);
+    ).run(studentUserId, offeringId, activeSemester);
     if (result.changes > 0) {
       db.prepare("DELETE FROM academic_grades WHERE student_user_id = ? AND offering_id = ? AND published = 0").run(studentUserId, offeringId);
       db.prepare("DELETE FROM midterm_alerts WHERE student_user_id = ? AND offering_id = ?").run(studentUserId, offeringId);

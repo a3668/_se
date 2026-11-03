@@ -10,7 +10,7 @@ export function meta() { return [{ title: "我的課表｜校務資訊系統" }]
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireUser(request);
-  const { semester, semesters } = getSemesterFilter(request);
+  const { semester, semesters } = getSemesterFilter(request, true);
   if (user.role === "teacher") {
     const { lessons } = getTeacherSchedule(user.id, semester);
     return {

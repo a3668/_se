@@ -8,7 +8,7 @@ export function meta() { return [{ title: "選課結果｜校務資訊系統" }]
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireRole(request, "student");
-  const { semester, semesters } = getSemesterFilter(request);
+  const { semester, semesters } = getSemesterFilter(request, true);
   return { semester, semesters, offerings: getStudentOfferings(user.id, semester).filter((offering) => offering.selected) };
 }
 

@@ -24,10 +24,10 @@ type Props = {
   paginationControls?: ReactNode;
   emptyMessage?: string;
   enrollmentOpen?: boolean;
-  semester?: string;
+  semester: string;
 };
 
-export function StudentCourseList({ title, description, offerings, mode, error, message, searchControls, paginationControls, emptyMessage, enrollmentOpen = false, semester = "115-1" }: Props) {
+export function StudentCourseList({ title, description, offerings, mode, error, message, searchControls, paginationControls, emptyMessage, enrollmentOpen = false, semester }: Props) {
   const busy = useNavigation().state !== "idle";
   const closed = mode !== "result" && !enrollmentOpen;
   return (
@@ -63,9 +63,9 @@ export function StudentCourseList({ title, description, offerings, mode, error, 
                   <TableCell>{offering.teacherName}{formatSchedules(offering).map((schedule) => <small key={schedule}>{schedule}</small>)}</TableCell>
                   <TableCell>{offering.enrolledCount} / {offering.capacity}</TableCell>
                   <TableCell>{mode === "add" && !offering.selected && status === "可加選" ? (
-                    <Form method="post"><InputControl type="hidden" name="offeringId" value={offering.id} /><ActionButton className="student-course-button" type="submit" disabled={!enrollmentOpen || busy}>加選</ActionButton></Form>
+                    <Form method="post"><InputControl type="hidden" name="originalSemester" value={semester} /><InputControl type="hidden" name="offeringId" value={offering.id} /><ActionButton className="student-course-button" type="submit" disabled={!enrollmentOpen || busy}>加選</ActionButton></Form>
                   ) : mode === "drop" && offering.dropBlockedReason ? <span>{offering.dropBlockedReason}</span> : mode === "drop" ? (
-                    <Form method="post"><InputControl type="hidden" name="offeringId" value={offering.id} /><ActionButton className="student-course-button" type="submit" disabled={!enrollmentOpen || busy}>退選</ActionButton></Form>
+                    <Form method="post"><InputControl type="hidden" name="originalSemester" value={semester} /><InputControl type="hidden" name="offeringId" value={offering.id} /><ActionButton className="student-course-button" type="submit" disabled={!enrollmentOpen || busy}>退選</ActionButton></Form>
                   ) : <StatusChip label={status} />}</TableCell>
                 </TableRow>
               );

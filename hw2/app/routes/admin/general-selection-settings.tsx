@@ -4,7 +4,7 @@ import { data, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/general-selection-settings";
 import { requireAdmin } from "../../lib/admin-auth.server";
 import { ADMIN_GENERAL_SELECTION_SETTINGS_PATH } from "../../lib/admin-paths";
-import { ACTIVE_SEMESTER } from "../../lib/enrollments.server";
+import { getActiveSemester, withCurrentSemester } from "../../lib/semester-settings.server";
 import { isGeneralSelectionOpen, saveGeneralSelectionSettings } from "../../lib/general-selection-settings.server";
 
 export function meta() {
@@ -13,8 +13,9 @@ export function meta() {
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireAdmin(request);
+  const semester = getActiveSemester();
   return {
-    isOpen: isGeneralSelectionOpen(ACTIVE_SEMESTER), semester: ACTIVE_SEMESTER,
+    isOpen: isGeneralSelectionOpen(semester), semester,
     saved: new URL(request.url).searchParams.has("saved"),
   };
 }
@@ -26,7 +27,7 @@ export async function action({ request }: Route.ActionArgs) {
   if (origin && origin !== new URL(request.url).origin) throw new Response("Forbidden", { status: 403 });
   const form = await request.formData();
   if (form.get("intent") !== "save") throw new Response("Bad Request", { status: 400 });
-  const error = saveGeneralSelectionSettings(ACTIVE_SEMESTER, form.get("mode"));
+  const error = withCurrentSemester(form.get("originalSemester"), (semester) => saveGeneralSelectionSettings(semester, form.get("mode")));
   if (error) return data({ error }, { status: 400 });
   return redirect(`${ADMIN_GENERAL_SELECTION_SETTINGS_PATH}?saved=1`);
 }
@@ -42,6 +43,7 @@ export default function GeneralSelectionSettings({ loaderData, actionData }: Rou
       {saved && !actionData?.error ? <StatusMessage role="status" severity="success">設定已儲存並生效。</StatusMessage> : null}
       {actionData?.error ? <StatusMessage className="admin-form-error" role="alert">{actionData.error}</StatusMessage> : null}
       <FormPanel key={String(isOpen)} className="admin-enrollment-form" method="post">
+        <InputControl type="hidden" name="originalSemester" value={semester} />
         <fieldset disabled={busy}>
           <legend>開放方式</legend>
           <RadioGroup className="admin-enrollment-modes" name="mode" defaultValue={isOpen ? "open" : "closed"}>

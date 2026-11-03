@@ -1,7 +1,7 @@
 import { getDatabase } from "./db.server";
-import { ACTIVE_SEMESTER } from "./enrollments.server";
+import { getActiveSemester } from "./semester-settings.server";
 
-export function getTeacherSchedule(teacherUserId: number, semester = ACTIVE_SEMESTER) {
+export function getTeacherSchedule(teacherUserId: number, semester = getActiveSemester()) {
   const lessons = getDatabase().prepare(
     `SELECT o.id AS offeringId, c.course_code AS code, c.name, o.section,
             s.weekday, s.start_period AS startPeriod, s.end_period AS endPeriod,

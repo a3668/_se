@@ -18,6 +18,7 @@ export default [
   route(`${ADMIN_ROUTE_SEGMENT}/logout`, "routes/admin/logout.ts"),
   route(ADMIN_ROUTE_SEGMENT, "routes/admin/layout.tsx", [
     index("routes/admin/home.tsx"),
+    route("semester-settings", "routes/admin/semester-settings.tsx"),
     route("enrollment-settings", "routes/admin/enrollment-settings.tsx"),
     route("withdrawal-settings", "routes/admin/withdrawal-settings.tsx"),
     route("general-selection-settings", "routes/admin/general-selection-settings.tsx"),

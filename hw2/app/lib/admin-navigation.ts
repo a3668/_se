@@ -1,4 +1,4 @@
-import { ADMIN_ENROLLMENT_SETTINGS_PATH, ADMIN_GENERAL_SELECTION_SETTINGS_PATH, ADMIN_MIDTERM_ALERT_SETTINGS_PATH, ADMIN_SEMESTER_GRADE_SETTINGS_PATH, ADMIN_STUDENTS_PATH, ADMIN_TEACHERS_PATH, ADMIN_WITHDRAWAL_SETTINGS_PATH } from "./admin-paths";
+import { ADMIN_SEMESTER_SETTINGS_PATH, ADMIN_ENROLLMENT_SETTINGS_PATH, ADMIN_GENERAL_SELECTION_SETTINGS_PATH, ADMIN_MIDTERM_ALERT_SETTINGS_PATH, ADMIN_SEMESTER_GRADE_SETTINGS_PATH, ADMIN_STUDENTS_PATH, ADMIN_TEACHERS_PATH, ADMIN_WITHDRAWAL_SETTINGS_PATH } from "./admin-paths";
 
 export const ADMIN_NAVIGATION = [
   { label: "帳號管理", items: [
@@ -6,6 +6,7 @@ export const ADMIN_NAVIGATION = [
     { label: "教師管理", path: ADMIN_TEACHERS_PATH, description: "維護教師資料與查看授課課表" },
   ] },
   { label: "校務作業設定", items: [
+    { label: "目前學期設定", path: ADMIN_SEMESTER_SETTINGS_PATH, description: "設定全系統目前使用的學期" },
     { label: "加退選管理", path: ADMIN_ENROLLMENT_SETTINGS_PATH, description: "設定加退選開放方式與年級" },
     { label: "停修管理", path: ADMIN_WITHDRAWAL_SETTINGS_PATH, description: "設定全校停修申請開放狀態" },
     { label: "通識初選管理", path: ADMIN_GENERAL_SELECTION_SETTINGS_PATH, description: "設定通識初選申請開放狀態" },
