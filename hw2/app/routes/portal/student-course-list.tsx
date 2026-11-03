@@ -1,3 +1,6 @@
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import { StatusChip, PageHeading, StatusMessage, TableContainer, DataTable, TableHead, TableRow, TableCell, TableBody, InputControl, ActionButton, EmptyState } from "../../components/ui";
 import { Form, Link, useNavigation } from "react-router";
 import type { ReactNode } from "react";
 import type { StudentOffering } from "../../lib/enrollments.server";
@@ -32,43 +35,44 @@ export function StudentCourseList({ title, description, offerings, mode, error, 
       <nav aria-label="麵包屑" className="portal-breadcrumb">
         <Link to="/home">系統首頁</Link><span aria-hidden="true">/</span><span aria-current="page">{title}</span>
       </nav>
-      <header className="course-catalog-heading">
-        <p className="portal-kicker">{semester} Course selection</p>
-        <h1>{title}</h1>
-        <p>{description}</p>
-      </header>
-      <nav className="student-course-tabs" aria-label="選課功能"><Link to="/course/add" aria-current={mode === "add" ? "page" : undefined}>加選</Link><Link to="/course/drop" aria-current={mode === "drop" ? "page" : undefined}>退選</Link><Link to="/course/result" aria-current={mode === "result" ? "page" : undefined}>選課結果</Link><Link to="/query/my-schedule">我的課表</Link></nav>
-      {!closed ? searchControls : <p className="student-course-message" role="status">目前未開放你的年級加退選，仍可查看選課結果與課表。</p>}
-      {error ? <p className="student-course-message is-error" role="alert">{error}</p> : null}
-      {message ? <p className="student-course-message" role="status">{message}</p> : null}
+      <PageHeading title={title} context={`${semester} · 選課作業`} description={description} />
+      <Tabs value={mode} className="student-course-tabs" aria-label="選課功能" variant="scrollable" scrollButtons="auto">
+        <Tab component={Link} to="/course/add" value="add" label="加選" aria-current={mode === "add" ? "page" : undefined} />
+        <Tab component={Link} to="/course/drop" value="drop" label="退選" aria-current={mode === "drop" ? "page" : undefined} />
+        <Tab component={Link} to="/course/result" value="result" label="選課結果" aria-current={mode === "result" ? "page" : undefined} />
+        <Tab component={Link} to="/query/my-schedule" value="schedule" label="我的課表" />
+      </Tabs>
+      {!closed ? searchControls : <StatusMessage className="student-course-message" role="status">目前未開放你的年級加退選，仍可查看選課結果與課表。</StatusMessage>}
+      {error ? <StatusMessage className="student-course-message is-error" role="alert">{error}</StatusMessage> : null}
+      {message ? <StatusMessage className="student-course-message" role="status" severity="success">{message}</StatusMessage> : null}
       {!closed && offerings.length ? (
-        <div className="course-catalog-table-wrap">
-          <table className="course-catalog-table">
-            <thead><tr>
-              <th scope="col">課程</th><th scope="col">年級／類別</th><th scope="col">學分</th>
-              <th scope="col">教師／時段</th><th scope="col">名額</th><th scope="col">狀態</th>
-            </tr></thead>
-            <tbody>{offerings.map((offering) => {
+        <TableContainer className="course-catalog-table-wrap">
+          <DataTable className="course-catalog-table">
+            <TableHead><TableRow>
+              <TableCell component="th" scope="col">課程</TableCell><TableCell component="th" scope="col">年級／類別</TableCell><TableCell component="th" scope="col">學分</TableCell>
+              <TableCell component="th" scope="col">教師／時段</TableCell><TableCell component="th" scope="col">名額</TableCell><TableCell component="th" scope="col">狀態</TableCell>
+            </TableRow></TableHead>
+            <TableBody>{offerings.map((offering) => {
               const status = offering.selected ? "已選" : offering.withdrawn ? "已停修" : offering.enrolledCount >= offering.capacity ? "額滿"
                 : !offering.schedules.length ? "時段未定" : offering.conflict ? "時段衝突" : "可加選";
               return (
-                <tr key={offering.id}>
-                  <td><strong>{offering.name}</strong><small>{offering.code} · {offering.section} 班</small></td>
-                  <td>{offering.grade} 年級 · {offering.category === "required" ? "必修" : "選修"}</td>
-                  <td>{offering.credits}</td>
-                  <td>{offering.teacherName}{formatSchedules(offering).map((schedule) => <small key={schedule}>{schedule}</small>)}</td>
-                  <td>{offering.enrolledCount} / {offering.capacity}</td>
-                  <td>{mode === "add" && !offering.selected && status === "可加選" ? (
-                    <Form method="post"><input type="hidden" name="offeringId" value={offering.id} /><button className="student-course-button" type="submit" disabled={!enrollmentOpen || busy}>加選</button></Form>
+                <TableRow key={offering.id}>
+                  <TableCell><strong>{offering.name}</strong><small>{offering.code} · {offering.section} 班</small></TableCell>
+                  <TableCell>{offering.grade} 年級 · {offering.category === "required" ? "必修" : "選修"}</TableCell>
+                  <TableCell>{offering.credits}</TableCell>
+                  <TableCell>{offering.teacherName}{formatSchedules(offering).map((schedule) => <small key={schedule}>{schedule}</small>)}</TableCell>
+                  <TableCell>{offering.enrolledCount} / {offering.capacity}</TableCell>
+                  <TableCell>{mode === "add" && !offering.selected && status === "可加選" ? (
+                    <Form method="post"><InputControl type="hidden" name="offeringId" value={offering.id} /><ActionButton className="student-course-button" type="submit" disabled={!enrollmentOpen || busy}>加選</ActionButton></Form>
                   ) : mode === "drop" && offering.dropBlockedReason ? <span>{offering.dropBlockedReason}</span> : mode === "drop" ? (
-                    <Form method="post"><input type="hidden" name="offeringId" value={offering.id} /><button className="student-course-button" type="submit" disabled={!enrollmentOpen || busy}>退選</button></Form>
-                  ) : <span>{status}</span>}</td>
-                </tr>
+                    <Form method="post"><InputControl type="hidden" name="offeringId" value={offering.id} /><ActionButton className="student-course-button" type="submit" disabled={!enrollmentOpen || busy}>退選</ActionButton></Form>
+                  ) : <StatusChip label={status} />}</TableCell>
+                </TableRow>
               );
-            })}</tbody>
-          </table>
-        </div>
-      ) : !closed ? <p className="course-catalog-empty">{emptyMessage ?? (mode === "add" ? "目前沒有可查詢的課程。" : "目前沒有已選課程。")}</p> : null}
+            })}</TableBody>
+          </DataTable>
+        </TableContainer>
+      ) : !closed ? <EmptyState className="course-catalog-empty">{emptyMessage ?? (mode === "add" ? "目前沒有可查詢的課程。" : "目前沒有已選課程。")}</EmptyState> : null}
       {!closed ? paginationControls : null}
     </div>
   );

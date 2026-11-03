@@ -1,3 +1,4 @@
+import { TableContainer, DataTable, TableHead, TableRow, TableCell, TableBody } from "./ui";
 type Lesson = {
   offeringId: number;
   code: string;
@@ -26,26 +27,26 @@ export function TeacherTimetable({ lessons, teacherName, semester, title = "授�
   title?: string;
 }) {
   return (
-    <div className="admin-schedule-wrapper">
-      <table className="admin-schedule-table" aria-label={`${teacherName} · ${semester} ${title}`}>
-        <caption>【{title}】</caption>
-        <thead>
-          <tr>
-            <th scope="col">節次</th>
-            {weekdays.map(([day, english]) => <th scope="col" key={day}>{day} ({english})</th>)}
-          </tr>
-        </thead>
-        <tbody>
+    <TableContainer className="admin-schedule-wrapper">
+      <DataTable className="admin-schedule-table" aria-label={`${teacherName} · ${semester} ${title}`}>
+        <caption>{semester} · {title}</caption>
+        <TableHead>
+          <TableRow>
+            <TableCell component="th" scope="col">節次</TableCell>
+            {weekdays.map(([day, english]) => <TableCell component="th" scope="col" key={day}><span>週{day}</span><small>{english}</small></TableCell>)}
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {periodTimes.map((time, index) => {
             const period = index + 1;
             return (
-              <tr key={period}>
-                <th scope="row">
+              <TableRow key={period}>
+                <TableCell component="th" scope="row">
                   <span>第 {period} 節</span>
                   <span>{time}</span>
-                </th>
+                </TableCell>
                 {weekdays.map(([day], index) => (
-                  <td key={day}>
+                  <TableCell key={day}>
                     {lessons.filter((lesson) => lesson.weekday === index + 1
                       && lesson.startPeriod !== null && lesson.endPeriod !== null
                       && lesson.startPeriod <= period && lesson.endPeriod >= period).map((lesson) => (
@@ -55,13 +56,13 @@ export function TeacherTimetable({ lessons, teacherName, semester, title = "授�
                         <span>{lesson.classroom || "教室未定"}</span>
                       </div>
                     ))}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             );
           })}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </DataTable>
+    </TableContainer>
   );
 }

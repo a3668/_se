@@ -1,3 +1,4 @@
+import { PageHeading, StatusMessage, ActionLink, EmptyState } from "../../components/ui";
 import { TeacherTimetable } from "../../components/teacher-timetable";
 import { Link } from "react-router";
 import type { Route } from "./+types/account-detail";
@@ -30,10 +31,9 @@ export default function AccountDetail({ loaderData }: Route.ComponentProps) {
   const { kind, account, listSearch, notice, schedule } = loaderData;
   const basePath = accountPath(kind);
   return (
-    <main className={`admin-main${kind === "students" ? " admin-narrow" : ""}`}>
-      <p className="admin-eyebrow">Account Management</p>
-      <h1>{accountLabel(kind)}資料</h1>
-      {notice ? <p className="admin-notice" role="status">{notice}</p> : null}
+    <section className={`admin-main${kind === "students" ? " admin-narrow" : ""}`}>
+      <PageHeading context="帳號管理" title={`${accountLabel(kind)}資料`} />
+      {notice ? <StatusMessage className="admin-notice" role="status">{notice}</StatusMessage> : null}
       <dl className="admin-account-details">
         <div><dt>{kind === "students" ? "學號" : "教師編號"}</dt><dd>{account.username}</dd></div>
         <div><dt>姓名</dt><dd>{account.name}</dd></div>
@@ -42,7 +42,7 @@ export default function AccountDetail({ loaderData }: Route.ComponentProps) {
         {kind === "students" ? <div><dt>年級</dt><dd>{account.grade} 年級</dd></div> : null}
       </dl>
       <div className="admin-actions">
-        <Link className="admin-primary-link" to={`${basePath}/${account.user_id}/edit${listSearch}`}>編輯</Link>
+        <ActionLink className="admin-primary-link" to={`${basePath}/${account.user_id}/edit${listSearch}`}>編輯</ActionLink>
         <Link to={`${basePath}${listSearch}`}>返回列表</Link>
       </div>
       {schedule ? (
@@ -61,9 +61,9 @@ export default function AccountDetail({ loaderData }: Route.ComponentProps) {
                 </div>
               ) : null}
             </>
-          ) : <p className="admin-empty">此教師本學期尚無授課資料。</p>}
+          ) : <EmptyState className="admin-empty">此教師本學期尚無授課資料。</EmptyState>}
         </section>
       ) : null}
-    </main>
+    </section>
   );
 }

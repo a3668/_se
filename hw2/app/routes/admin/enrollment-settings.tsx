@@ -1,5 +1,7 @@
+import RadioGroup from "@mui/material/RadioGroup";
+import { PageHeading, FormPanel, InputControl, ActionButton, StatusMessage } from "../../components/ui";
 import { useState } from "react";
-import { Form, data, redirect, useNavigation } from "react-router";
+import { data, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/enrollment-settings";
 import { requireAdmin } from "../../lib/admin-auth.server";
 import { ADMIN_ENROLLMENT_SETTINGS_PATH } from "../../lib/admin-paths";
@@ -34,18 +36,18 @@ function GradeSelection({ grades, openGrades }: { grades: number[]; openGrades: 
   );
   const navigation = useNavigation();
   return (
-    <Form className="admin-enrollment-form" method="post">
+    <FormPanel className="admin-enrollment-form" method="post">
       <fieldset disabled={navigation.state !== "idle"}>
         <legend>開放方式</legend>
-        <div className="admin-enrollment-modes">
-          <label><input type="radio" name="mode" value="closed" checked={mode === "closed"} onChange={() => setMode("closed")} />全校關閉</label>
-          <label><input type="radio" name="mode" value="all" checked={mode === "all"} disabled={!grades.length} onChange={() => setMode("all")} />全年級開放</label>
-          <label><input type="radio" name="mode" value="selected" checked={mode === "selected"} disabled={!grades.length} onChange={() => setMode("selected")} />指定年級開放</label>
-        </div>
+        <RadioGroup className="admin-enrollment-modes" name="mode" value={mode}>
+          <label><InputControl type="radio" name="mode" value="closed" checked={mode === "closed"} onChange={() => setMode("closed")} />全校關閉</label>
+          <label><InputControl type="radio" name="mode" value="all" checked={mode === "all"} disabled={!grades.length} onChange={() => setMode("all")} />全年級開放</label>
+          <label><InputControl type="radio" name="mode" value="selected" checked={mode === "selected"} disabled={!grades.length} onChange={() => setMode("selected")} />指定年級開放</label>
+        </RadioGroup>
         {mode === "selected" ? <div className="admin-enrollment-grades" role="group" aria-label="開放加退選的學生年級">
           {grades.map((grade) => (
             <label key={grade}>
-              <input type="checkbox" name="grade" value={grade} checked={selected.includes(grade)}
+              <InputControl type="checkbox" name="grade" value={grade} checked={selected.includes(grade)}
                 onChange={(event) => setSelected(event.target.checked
                   ? [...selected, grade] : selected.filter((value) => value !== grade))} />
               {grade} 年級
@@ -56,9 +58,9 @@ function GradeSelection({ grades, openGrades }: { grades: number[]; openGrades: 
         <p className="admin-help">{mode === "closed" ? "儲存後，全校學生都無法加選或退選。"
           : mode === "all" ? "儲存後，目前所有學生年級皆可加選與退選。"
           : "請至少選擇一個年級，涵蓋該年級所有科系學生，同時開放加選與退選。"}</p>
-        <button type="submit" name="intent" value="save">儲存設定</button>
+        <ActionButton type="submit" name="intent" value="save">儲存設定</ActionButton>
       </fieldset>
-    </Form>
+    </FormPanel>
   );
 }
 
@@ -66,14 +68,13 @@ export default function EnrollmentSettings({ loaderData, actionData }: Route.Com
   const { grades, openGrades, semester, saved } = loaderData;
   const currentOpenGrades = openGrades.filter((grade) => grades.includes(grade));
   return (
-    <main className="admin-main admin-narrow">
-      <p className="admin-eyebrow">Course Selection</p>
-      <h1>加退選管理</h1>
+    <section className="admin-main admin-narrow">
+      <PageHeading context="校務作業設定" title="加退選管理" />
       <p>目前學期：{semester}</p>
       <p>目前狀態：{!currentOpenGrades.length ? "全校關閉" : currentOpenGrades.length === grades.length ? "全年級開放" : `開放 ${currentOpenGrades.join("、")} 年級`}</p>
-      {saved && !actionData?.error ? <p role="status">設定已儲存並生效。</p> : null}
-      {actionData?.error ? <p className="admin-form-error" role="alert">{actionData.error}</p> : null}
+      {saved && !actionData?.error ? <StatusMessage role="status" severity="success">設定已儲存並生效。</StatusMessage> : null}
+      {actionData?.error ? <StatusMessage className="admin-form-error" role="alert">{actionData.error}</StatusMessage> : null}
       <GradeSelection key={JSON.stringify([grades, openGrades])} grades={grades} openGrades={openGrades} />
-    </main>
+    </section>
   );
 }

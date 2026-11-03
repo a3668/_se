@@ -1,4 +1,5 @@
-import { Form, Link, redirect } from "react-router";
+import { PageHeading, ActionLink, FilterForm, InputControl, SelectControl, ActionButton, TableContainer, DataTable, TableHead, TableRow, TableCell, TableBody, EmptyState } from "../../components/ui";
+import { Link, redirect } from "react-router";
 import { Pagination } from "../../components/pagination";
 import type { Route } from "./+types/accounts";
 import { requireAdmin } from "../../lib/admin-auth.server";
@@ -44,65 +45,59 @@ export default function Accounts({ loaderData }: Route.ComponentProps) {
   const label = accountLabel(kind);
   const basePath = accountPath(kind);
   return (
-    <main className="admin-main">
-      <div className="admin-page-heading">
-        <div>
-          <p className="admin-eyebrow">Account Management</p>
-          <h1>{label}管理</h1>
-        </div>
-        <Link className="admin-primary-link" to={`${basePath}/new`}>新增{label}</Link>
-      </div>
-      <Form key={JSON.stringify([kind, query, department, grade])} className="admin-search" method="get" action={basePath}>
-        <input type="hidden" name="search" value="1" />
-        <label htmlFor="account-search">搜尋{kind === "students" ? "學號" : "教師編號"}或姓名</label>
-        <div>
-          <input id="account-search" name="q" defaultValue={query} maxLength={100} />
+    <section className="admin-main">
+      <PageHeading context="帳號管理" title={`${label}管理`}
+        actions={<ActionLink className="admin-primary-link" to={`${basePath}/new`}>新增{label}</ActionLink>} />
+      <FilterForm key={JSON.stringify([kind, query, department, grade])} className="admin-search" method="get" action={basePath}>
+        <InputControl type="hidden" name="search" value="1" />
+        <label htmlFor="account-search">搜尋{kind === "students" ? "學號" : "教師編號"}或姓名
+          <InputControl id="account-search" name="q" defaultValue={query} maxLength={100} placeholder="輸入編號或姓名" />
+        </label>
           <label className="admin-filter" htmlFor="account-department">
             科系
-            <select id="account-department" name="department" defaultValue={department}>
+            <SelectControl id="account-department" name="department" defaultValue={department}>
               <option value="">全部科系</option>
               {department && !departments.includes(department) ? <option value={department}>{department}</option> : null}
               {departments.map((value) => <option key={value} value={value}>{value}</option>)}
-            </select>
+            </SelectControl>
           </label>
           {kind === "students" ? (
             <label className="admin-filter" htmlFor="account-grade">
               年級
-              <select id="account-grade" name="grade" defaultValue={grade}>
+              <SelectControl id="account-grade" name="grade" defaultValue={grade}>
                 <option value="">全部年級</option>
                 {grade && !grades.some((value) => String(value) === grade) ? <option value={grade}>{grade} 年級</option> : null}
                 {grades.map((value) => <option key={value} value={value}>{value} 年級</option>)}
-              </select>
+              </SelectControl>
             </label>
           ) : null}
-          <button type="submit">搜尋</button>
+          <ActionButton type="submit">搜尋</ActionButton>
           {searched ? <Link to={basePath}>清除</Link> : null}
-        </div>
-      </Form>
+      </FilterForm>
       {accounts.length ? (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead><tr>
-              <th scope="col">{kind === "students" ? "學號" : "教師編號"}</th>
-              <th scope="col">姓名</th>
-              <th scope="col">系所</th>
-              {kind === "students" ? <th scope="col">年級</th> : null}
-              <th scope="col">管理</th>
-            </tr></thead>
-            <tbody>
+        <TableContainer className="admin-table-wrap">
+          <DataTable className="admin-table">
+            <TableHead><TableRow>
+              <TableCell component="th" scope="col">{kind === "students" ? "學號" : "教師編號"}</TableCell>
+              <TableCell component="th" scope="col">姓名</TableCell>
+              <TableCell component="th" scope="col">系所</TableCell>
+              {kind === "students" ? <TableCell component="th" scope="col">年級</TableCell> : null}
+              <TableCell component="th" scope="col">管理</TableCell>
+            </TableRow></TableHead>
+            <TableBody>
               {accounts.map((account) => (
-                <tr key={account.user_id}>
-                  <td>{account.username}</td>
-                  <td>{account.name}</td>
-                  <td>{account.department}</td>
-                  {kind === "students" ? <td>{account.grade}</td> : null}
-                  <td><Link to={`${basePath}/${account.user_id}${getPageHref(basePath, { query, department, grade }, pagination.currentPage).slice(basePath.length)}`}>查看</Link></td>
-                </tr>
+                <TableRow key={account.user_id}>
+                  <TableCell>{account.username}</TableCell>
+                  <TableCell>{account.name}</TableCell>
+                  <TableCell>{account.department}</TableCell>
+                  {kind === "students" ? <TableCell>{account.grade}</TableCell> : null}
+                  <TableCell><Link to={`${basePath}/${account.user_id}${getPageHref(basePath, { query, department, grade }, pagination.currentPage).slice(basePath.length)}`}>查看</Link></TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      ) : <p className="admin-empty">{searched ? "找不到符合條件的資料。" : `請先查詢${label}。`}</p>}
+            </TableBody>
+          </DataTable>
+        </TableContainer>
+      ) : <EmptyState className="admin-empty">{searched ? "找不到符合條件的資料。" : `請先查詢${label}。`}</EmptyState>}
       {searched ? <>
       <p className="admin-help admin-pagination-summary">共 {pagination.totalItems} 筆，第 {pagination.currentPage} / {pagination.totalPages} 頁</p>
       <Pagination
@@ -111,6 +106,6 @@ export default function Accounts({ loaderData }: Route.ComponentProps) {
         getPageHref={(page) => getPageHref(basePath, { query, department, grade }, page)}
       />
       </> : null}
-    </main>
+    </section>
   );
 }

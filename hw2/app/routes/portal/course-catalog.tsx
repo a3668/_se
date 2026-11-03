@@ -1,4 +1,5 @@
-import { Form, Link } from "react-router";
+import { PageHeading, FilterForm, InputControl, SelectControl, ActionButton, TableContainer, DataTable, TableHead, TableRow, TableCell, TableBody, EmptyState } from "../../components/ui";
+import { Link } from "react-router";
 import type { Route } from "./+types/course-catalog";
 import { requireRole } from "../../lib/auth.server";
 import { getDatabase } from "../../lib/db.server";
@@ -101,48 +102,45 @@ export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
         <span aria-hidden="true">/</span>
         <span aria-current="page">課程資料查詢</span>
       </nav>
-      <header className="course-catalog-heading">
-        <p className="portal-kicker">Course catalog</p>
-        <h1>課程資料查詢</h1>
-      </header>
-      <Form key={JSON.stringify([semester, department, grade])} className="course-catalog-filters" method="get" action="/query/class-data">
-        <input type="hidden" name="search" value="1" />
-        <label>學期<select name="semester" defaultValue={semester}>{semesters.map((s) => <option key={s}>{s}</option>)}</select></label>
+      <PageHeading title="課程資料查詢" context={`${semester} · 課程查詢`} description="依學期、科系與年級查詢開課資訊。" />
+      <FilterForm key={JSON.stringify([semester, department, grade])} className="course-catalog-filters" method="get" action="/query/class-data">
+        <InputControl type="hidden" name="search" value="1" />
+        <label>學期<SelectControl name="semester" defaultValue={semester}>{semesters.map((s) => <option key={s}>{s}</option>)}</SelectControl></label>
         <label>科系
-          <select name="department" defaultValue={department}>
+          <SelectControl name="department" defaultValue={department}>
             <option value="">全部科系</option>
             {departments.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
+          </SelectControl>
         </label>
         <label>年級
-          <select name="grade" defaultValue={grade}>
+          <SelectControl name="grade" defaultValue={grade}>
             <option value="">全部年級</option>
             {grades.map((value) => <option key={value} value={value}>{value} 年級</option>)}
-          </select>
+          </SelectControl>
         </label>
-        <button type="submit">查詢</button>
+        <ActionButton type="submit">查詢</ActionButton>
         {searched ? <Link to="/query/class-data">清除</Link> : null}
-      </Form>
+      </FilterForm>
       {courses.length ? (
-        <div className="course-catalog-table-wrap">
-          <table className="course-catalog-table">
-            <thead><tr>
-              <th scope="col">課程</th><th scope="col">年級／類別</th><th scope="col">學分</th>
-              <th scope="col">班別／上限</th><th scope="col">授課教師</th><th scope="col">上課時段</th>
-            </tr></thead>
-            <tbody>{courses.map((course) => (
-              <tr key={course.offering_id}>
-                <td><strong>{course.name}</strong><small>{course.course_code}</small></td>
-                <td>{course.grade} 年級 · {course.category === "required" ? "必修" : "選修"}</td>
-                <td>{course.credits}</td>
-                <td>{course.section} 班 · {course.capacity} 人</td>
-                <td>{course.teacher_name}</td>
-                <td>{course.schedules.length ? course.schedules.map((schedule) => <div key={schedule}>{schedule}</div>) : "時段未定"}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      ) : <p className="course-catalog-empty">{searched ? "此學期沒有符合條件的開課資料。" : "請先查詢課程。"}</p>}
+        <TableContainer className="course-catalog-table-wrap">
+          <DataTable className="course-catalog-table">
+            <TableHead><TableRow>
+              <TableCell component="th" scope="col">課程</TableCell><TableCell component="th" scope="col">年級／類別</TableCell><TableCell component="th" scope="col">學分</TableCell>
+              <TableCell component="th" scope="col">班別／上限</TableCell><TableCell component="th" scope="col">授課教師</TableCell><TableCell component="th" scope="col">上課時段</TableCell>
+            </TableRow></TableHead>
+            <TableBody>{courses.map((course) => (
+              <TableRow key={course.offering_id}>
+                <TableCell><strong>{course.name}</strong><small>{course.course_code}</small></TableCell>
+                <TableCell>{course.grade} 年級 · {course.category === "required" ? "必修" : "選修"}</TableCell>
+                <TableCell>{course.credits}</TableCell>
+                <TableCell>{course.section} 班 · {course.capacity} 人</TableCell>
+                <TableCell>{course.teacher_name}</TableCell>
+                <TableCell>{course.schedules.length ? course.schedules.map((schedule) => <div key={schedule}>{schedule}</div>) : "時段未定"}</TableCell>
+              </TableRow>
+            ))}</TableBody>
+          </DataTable>
+        </TableContainer>
+      ) : <EmptyState className="course-catalog-empty">{searched ? "此學期沒有符合條件的開課資料。" : "請先查詢課程。"}</EmptyState>}
       {searched ? <><p className="admin-pagination-summary">共 {pagination.totalItems} 筆，第 {pagination.currentPage} / {pagination.totalPages} 頁</p><Pagination {...pagination} label="課程查詢分頁" getPageHref={pageHref} /></> : null}
     </div>
   );

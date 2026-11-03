@@ -1,19 +1,10 @@
-import {
-  Form,
-  isRouteErrorResponse,
-  Links,
-  Link,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-  useRouteLoaderData,
-  useLocation,
-} from "react-router";
+import { ActionLink } from "./components/ui";
+import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import CssBaseline from "@mui/material/CssBaseline";
+import { ThemeProvider } from "@mui/material/styles";
+import { theme } from "./theme";
 import type { Route } from "./+types/root";
 import { getCurrentUser } from "./lib/auth.server";
-import { ADMIN_BASE_PATH } from "./lib/admin-paths";
-import { isPortalPath } from "./lib/portal-navigation";
 import "./app.css";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -31,7 +22,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        {children}
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          {children}
+        </ThemeProvider>
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -39,58 +33,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SiteHeader() {
-  const rootData = useRouteLoaderData<typeof loader>("root");
-  const user = rootData?.user;
-
-  return (
-    <header className="site-header">
-      <div className="shell header-inner">
-        <Link className="brand" to="/" aria-label="回到首頁">
-          HW2
-          <span>Local Login</span>
-        </Link>
-        <nav className="session-nav" aria-label="會員功能">
-          {user ? (
-            <>
-              <span className="signed-in-user">
-                已登入：<strong>{user.username}</strong>
-              </span>
-              <Form action="/logout" method="post">
-                <button className="text-button" type="submit">
-                  登出
-                </button>
-              </Form>
-            </>
-          ) : (
-            <Link className="login-link" to="/login">
-              登入
-            </Link>
-          )}
-        </nav>
-      </div>
-    </header>
-  );
-}
-
 export default function App() {
-  const pathname = useLocation().pathname;
-  const isAdminPath = pathname === ADMIN_BASE_PATH || pathname.startsWith(`${ADMIN_BASE_PATH}/`);
-  const usesStandaloneLayout = isAdminPath || isPortalPath(pathname);
-
-  if (usesStandaloneLayout) return <Outlet />;
-
-  return (
-    <div className="site-layout">
-      <SiteHeader />
-      <div className="site-content">
-        <Outlet />
-      </div>
-      <footer className="site-footer">
-        <div className="shell">現代軟體工程｜HW2</div>
-      </footer>
-    </div>
-  );
+  return <Outlet />;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -101,9 +45,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     <main className="error-page shell">
       <p className="eyebrow">Error {status}</p>
       <h1>{message}</h1>
-      <Link className="primary-link" to="/">
+      <ActionLink className="primary-link" to="/">
         回到首頁
-      </Link>
+      </ActionLink>
     </main>
   );
 }

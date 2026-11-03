@@ -1,3 +1,5 @@
+import { InputControl, StatusMessage, ActionButton } from "../components/ui";
+import { AuthLayout } from "../components/auth-layout";
 import { data, Form, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/login";
 import {
@@ -44,16 +46,15 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
   const isSubmitting = navigation.state === "submitting";
 
   return (
-    <main className="auth-page shell">
-      <section className="auth-card">
-        <p className="eyebrow">Student & Teacher sign in</p>
-        <h1>學生／老師登入</h1>
-        <p className="auth-intro">輸入既有帳號，登入成功後會進入校務資訊系統。</p>
+    <AuthLayout>
+        <p className="eyebrow">歡迎回來</p>
+        <h1>登入校務資訊系統</h1>
+        <p className="auth-intro">學生與教師請使用既有帳號登入。</p>
 
         <Form className="auth-form" method="post">
           <label>
             <span>帳號</span>
-            <input
+            <InputControl
               autoComplete="username"
               autoFocus
               maxLength={30}
@@ -64,7 +65,7 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
           </label>
           <label>
             <span>密碼</span>
-            <input
+            <InputControl
               autoComplete="current-password"
               maxLength={128}
               name="password"
@@ -73,15 +74,14 @@ export default function LoginPage({ actionData }: Route.ComponentProps) {
             />
           </label>
           {actionData?.error ? (
-            <p className="form-error" role="alert">
+            <StatusMessage className="form-error" role="alert">
               {actionData.error}
-            </p>
+            </StatusMessage>
           ) : null}
-          <button className="submit-button" disabled={isSubmitting} type="submit">
+          <ActionButton className="submit-button" disabled={isSubmitting} type="submit">
             {isSubmitting ? "登入中…" : "登入"}
-          </button>
+          </ActionButton>
         </Form>
-      </section>
-    </main>
+      </AuthLayout>
   );
 }

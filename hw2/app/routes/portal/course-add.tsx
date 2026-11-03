@@ -1,4 +1,5 @@
-import { Form, Link, data, redirect } from "react-router";
+import { FilterForm, InputControl, SelectControl, ActionButton } from "../../components/ui";
+import { Link, data, redirect } from "react-router";
 import { Pagination } from "../../components/pagination";
 import type { Route } from "./+types/course-add";
 import { requireRole } from "../../lib/auth.server";
@@ -91,25 +92,25 @@ export default function CourseAdd({ loaderData, actionData }: Route.ComponentPro
     message={loaderData.added ? "加選成功。" : undefined}
     emptyMessage={searched ? "找不到符合條件的課程。" : "請先查詢課程。"}
     searchControls={
-      <Form key={JSON.stringify([department, grade])} className="course-catalog-filters" method="get" action="/course/add">
-        <input type="hidden" name="search" value="1" />
+      <FilterForm key={JSON.stringify([department, grade])} className="course-catalog-filters" method="get" action="/course/add">
+        <InputControl type="hidden" name="search" value="1" />
         <label htmlFor="course-add-department">科系
-          <select id="course-add-department" name="department" defaultValue={department}>
+          <SelectControl id="course-add-department" name="department" defaultValue={department}>
             <option value="">全部科系</option>
             {department && !departments.includes(department) ? <option value={department}>{department}</option> : null}
             {departments.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
+          </SelectControl>
         </label>
         <label htmlFor="course-add-grade">年級
-          <select id="course-add-grade" name="grade" defaultValue={grade}>
+          <SelectControl id="course-add-grade" name="grade" defaultValue={grade}>
             <option value="">全部年級</option>
             {grade && !grades.some((value) => String(value) === grade) ? <option value={grade}>{grade} 年級</option> : null}
             {grades.map((value) => <option key={value} value={value}>{value} 年級</option>)}
-          </select>
+          </SelectControl>
         </label>
-        <button type="submit">查詢</button>
+        <ActionButton type="submit">查詢</ActionButton>
         {searched ? <Link to="/course/add">清除</Link> : null}
-      </Form>
+      </FilterForm>
     }
     paginationControls={searched ? <>
       <p className="admin-help admin-pagination-summary">共 {pagination.totalItems} 筆，第 {pagination.currentPage} / {pagination.totalPages} 頁</p>
