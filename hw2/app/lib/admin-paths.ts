@@ -9,3 +9,4 @@ export const ADMIN_WITHDRAWAL_SETTINGS_PATH = `${ADMIN_BASE_PATH}/withdrawal-set
 export const ADMIN_GENERAL_SELECTION_SETTINGS_PATH = `${ADMIN_BASE_PATH}/general-selection-settings`;
 export const ADMIN_MIDTERM_ALERT_SETTINGS_PATH = `${ADMIN_BASE_PATH}/midterm-alert-settings`;
 export const ADMIN_SEMESTER_GRADE_SETTINGS_PATH = `${ADMIN_BASE_PATH}/semester-grade-settings`;
+export const ADMIN_SEMESTER_SETTINGS_PATH = `${ADMIN_BASE_PATH}/semester-settings`;

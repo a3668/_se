@@ -31,25 +31,26 @@ export function saveEnrollmentOpenGrades(semester: string, mode: FormDataEntryVa
     return "請選擇有效的學生年級。";
   }
   const db = getDatabase();
-  db.exec("BEGIN IMMEDIATE");
+  const ownsTransaction = !db.isTransaction;
+  if (ownsTransaction) db.exec("BEGIN IMMEDIATE");
   try {
     const { grades } = getEnrollmentSettings(semester);
     const selectedGrades = mode === "all" ? grades : mode === "closed" ? [] : [...new Set(values.map(Number))];
     if (mode === "all" && !grades.length) {
-      db.exec("ROLLBACK");
+      if (ownsTransaction) db.exec("ROLLBACK");
       return "目前沒有學生年級資料，無法開放全年級。";
     }
     if (selectedGrades.some((grade) => !grades.includes(grade))) {
-      db.exec("ROLLBACK");
+      if (ownsTransaction) db.exec("ROLLBACK");
       return "學生年級資料已變更，請重新載入後再儲存。";
     }
     db.prepare("DELETE FROM enrollment_open_grades WHERE semester = ?").run(semester);
     const insert = db.prepare("INSERT INTO enrollment_open_grades (semester, grade) VALUES (?, ?)");
     for (const grade of selectedGrades) insert.run(semester, grade);
-    db.exec("COMMIT");
+    if (ownsTransaction) db.exec("COMMIT");
     return null;
   } catch (error) {
-    if (db.isTransaction) db.exec("ROLLBACK");
+    if (ownsTransaction && db.isTransaction) db.exec("ROLLBACK");
     throw error;
   }
 }

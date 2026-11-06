@@ -1,4 +1,5 @@
-import { data, Form, redirect } from "react-router";
+import { PageHeading, StatusMessage, ActionButton } from "../../components/ui";
+import { data, Form, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/account-edit";
 import { requireAdmin } from "../../lib/admin-auth.server";
 import { accountLabel, accountPath, accountListSearch } from "../../lib/admin-accounts";
@@ -42,6 +43,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function AccountEdit({ loaderData, actionData }: Route.ComponentProps) {
+  const busy = useNavigation().state !== "idle";
   const { kind, account, notice, listSearch } = loaderData;
   const fields: AccountFields = {
     ...(actionData?.fields ?? {
@@ -53,19 +55,18 @@ export default function AccountEdit({ loaderData, actionData }: Route.ComponentP
     username: account.username,
   };
   return (
-    <main className="admin-main admin-narrow">
-      <p className="admin-eyebrow">Account Management</p>
-      <h1>編輯{accountLabel(kind)}</h1>
-      {notice ? <p className="admin-notice" role="status">{notice}</p> : null}
+    <section className="admin-main admin-narrow">
+      <PageHeading context="帳號管理" title={`編輯${accountLabel(kind)}`} />
+      {notice ? <StatusMessage className="admin-notice" role="status">{notice}</StatusMessage> : null}
       <AccountForm key={JSON.stringify(fields)} kind={kind} creating={false} backHref={`${accountPath(kind)}/${account.user_id}${listSearch}`} backLabel="返回資料" fields={fields} error={actionData?.fields ? actionData.error : undefined} />
       <section className="admin-reset">
         <h2>重設密碼</h2>
         <p>重設為目前生日八碼（YYYYMMDD），並使這個帳號的所有登入失效。</p>
-        {actionData?.fields === null && actionData.error ? <p className="admin-form-error" role="alert">{actionData.error}</p> : null}
+        {actionData?.fields === null && actionData.error ? <StatusMessage className="admin-form-error" role="alert">{actionData.error}</StatusMessage> : null}
         <Form method="post" onSubmit={(event) => { if (!window.confirm("確定要重設密碼並登出此帳號所有裝置？")) event.preventDefault(); }}>
-          <button type="submit" name="intent" value="reset">重設密碼</button>
+          <ActionButton type="submit" name="intent" value="reset" disabled={busy}>重設密碼</ActionButton>
         </Form>
       </section>
-    </main>
+    </section>
   );
 }

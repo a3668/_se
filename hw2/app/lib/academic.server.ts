@@ -1,6 +1,7 @@
 import type { CurrentUser } from "./auth.server";
 import { getDatabase } from "./db.server";
-import { ACTIVE_SEMESTER, addEnrollment, getSemesterOptions } from "./enrollments.server";
+import { getActiveSemester, SEMESTER_CHANGED_MESSAGE } from "./semester-settings.server";
+import { addEnrollment, getSemesterOptions } from "./enrollments.server";
 import { isWithdrawalOpen, WITHDRAWAL_CLOSED_MESSAGE } from "./withdrawal-settings.server";
 import { isGeneralSelectionOpen, GENERAL_SELECTION_CLOSED_MESSAGE } from "./general-selection-settings.server";
 import { isMidtermAlertOpen, MIDTERM_ALERT_CLOSED_MESSAGE } from "./midterm-alert-settings.server";
@@ -56,18 +57,19 @@ function profile(user: CurrentUser) {
 }
 
 export function getAcademicData(user: CurrentUser, path: string, params: URLSearchParams): AcademicData {
+  const activeSemester = getActiveSemester();
   const identity = profile(user);
   const semesters = getSemesterOptions();
-  const semester = params.get("semester") || ACTIVE_SEMESTER;
+  const semester = params.get("semester") || activeSemester;
   if (!semesters.includes(semester)) throw new Response("學期無效", { status: 400 });
   const teacher = user.role === "teacher";
   const value: AcademicData = { semester, semesters, courses: [], students: [], offeringId: null, columns: [], records: [], surveys: [], teachers: [], teacherId: null, classrooms: [], classroom: "", lessons: [], note: "", summary: [] };
   if (path === "/query/semester-grades" || path === "/query/history-grades") {
-    value.semesterGradeOpen = isSemesterGradeOpen(ACTIVE_SEMESTER);
+    value.semesterGradeOpen = isSemesterGradeOpen(activeSemester);
     if (path === "/query/semester-grades" && !value.semesterGradeOpen) return value;
   }
   if (path === "/teacher/alerts" || path === "/query/midterm-alert") {
-    value.midtermAlertOpen = isMidtermAlertOpen(ACTIVE_SEMESTER);
+    value.midtermAlertOpen = isMidtermAlertOpen(activeSemester);
     if (!value.midtermAlertOpen) return value;
   }
   const courses = teacher
@@ -111,20 +113,20 @@ export function getAcademicData(user: CurrentUser, path: string, params: URLSear
        ${!teacher && path !== "/query/history-grades" ? "AND o.semester = ?" : ""}
        ${hideCurrentHistory ? "AND o.semester != ?" : ""}
        ORDER BY o.semester DESC, c.course_code, u.username`,
-      user.id, ...(teacher ? [offeringId] : path === "/query/history-grades" ? [] : [semester]), ...(hideCurrentHistory ? [ACTIVE_SEMESTER] : []));
+      user.id, ...(teacher ? [offeringId] : path === "/query/history-grades" ? [] : [semester]), ...(hideCurrentHistory ? [activeSemester] : []));
     value.records = grades.map((g, i) => ({ id: i, cells: teacher ? [g.username, g.studentName, g.name, String(g.credits), String(g.score), g.published ? "已公布" : "草稿"] : [g.semester, g.name, String(g.credits), String(g.score), g.score >= 60 ? "及格" : "不及格"] }));
     const published = grades.filter((g) => g.published);
     const credits = published.reduce((n, g) => n + g.credits, 0);
     value.summary = [{ label: "已公布門數", value: String(published.length) }, { label: "取得學分", value: String(published.filter((g) => g.score >= 60).reduce((n, g) => n + g.credits, 0)) }, { label: "學分加權平均", value: credits ? (published.reduce((n, g) => n + g.credits * g.score, 0) / credits).toFixed(2) : "—" }];
     value.note = "採百分制，60 分及格。學生僅能看見已公布的成績；停修不計入平均與學分。";
-    if (hideCurrentHistory) value.note += ` ${ACTIVE_SEMESTER} 學期成績查詢尚未開放，此處僅顯示其他學期資料。`;
+    if (hideCurrentHistory) value.note += ` ${activeSemester} 學期成績查詢尚未開放，此處僅顯示其他學期資料。`;
     if (!teacher) {
       const withdrawals = rows<{ id: number; semester: string; name: string; credits: number }>(
         `SELECT a.id, a.semester, c.name, c.credits FROM student_applications a
          JOIN course_offerings o ON o.id = a.offering_id JOIN courses c ON c.id = o.course_id
          WHERE a.student_user_id = ? AND a.kind = 'withdraw' AND a.status = 'approved'
          ${path !== "/query/history-grades" ? "AND a.semester = ?" : ""}
-         ${hideCurrentHistory ? "AND a.semester != ?" : ""} ORDER BY a.semester DESC`, user.id, ...(path !== "/query/history-grades" ? [semester] : []), ...(hideCurrentHistory ? [ACTIVE_SEMESTER] : []));
+         ${hideCurrentHistory ? "AND a.semester != ?" : ""} ORDER BY a.semester DESC`, user.id, ...(path !== "/query/history-grades" ? [semester] : []), ...(hideCurrentHistory ? [activeSemester] : []));
       for (const w of withdrawals) value.records.push({ id: grades.length + w.id, cells: [w.semester, w.name, String(w.credits), "—", "停修"] });
     }
   }
@@ -275,7 +277,7 @@ function ownCourse(user: CurrentUser, id: number, active = true) {
   const course = row<{ id: number; semester: string; generalEducation: number }>(
     "SELECT id, semester, general_education AS generalEducation FROM course_offerings WHERE id = ? AND teacher_user_id = ?", id, user.id);
   if (user.role !== "teacher" || !course) throw new Response("Forbidden", { status: 403 });
-  if (active && course.semester !== ACTIVE_SEMESTER) throw new InputError("僅能修改目前學期資料。");
+  if (active && course.semester !== getActiveSemester()) throw new InputError("僅能修改目前學期資料。");
   return course;
 }
 function enrolled(studentId: number, offeringId: number) {
@@ -285,7 +287,7 @@ function studentCourse(user: CurrentUser, offeringId: number) {
   if (user.role !== "student") throw new Response("Forbidden", { status: 403 });
   enrolled(user.id, offeringId);
   const course = row<{ semester: string }>("SELECT semester FROM course_offerings WHERE id = ?", offeringId);
-  if (course?.semester !== ACTIVE_SEMESTER) throw new InputError("僅能申請或填寫目前學期課程。");
+  if (course?.semester !== getActiveSemester()) throw new InputError("僅能申請或填寫目前學期課程。");
 }
 
 export function saveAcademicAction(user: CurrentUser, path: string, form: FormData): string | null {
@@ -294,6 +296,8 @@ export function saveAcademicAction(user: CurrentUser, path: string, form: FormDa
   const now = new Date().toISOString();
   db.exec("BEGIN IMMEDIATE");
   try {
+    const activeSemester = getActiveSemester();
+    if (path !== "/teacher/discipline" && form.get("originalSemester") !== activeSemester) throw new InputError(SEMESTER_CHANGED_MESSAGE);
     const intent = textField(form, "intent", 30);
     if (path === "/teacher/courses" && intent === "general-setting") {
       const offeringId = idField(form, "offeringId");
@@ -314,7 +318,7 @@ export function saveAcademicAction(user: CurrentUser, path: string, form: FormDa
         run(`INSERT INTO academic_grades VALUES (?, ?, ?, ?, ?) ON CONFLICT(student_user_id, offering_id)
           DO UPDATE SET score = excluded.score, published = excluded.published, updated_at = excluded.updated_at`, studentId, offeringId, score, published, now);
       } else if (path === "/teacher/alerts" && ["alert", "clear-alert"].includes(intent)) {
-        if (!isMidtermAlertOpen(ACTIVE_SEMESTER)) throw new InputError(MIDTERM_ALERT_CLOSED_MESSAGE);
+        if (!isMidtermAlertOpen(activeSemester)) throw new InputError(MIDTERM_ALERT_CLOSED_MESSAGE);
         if (intent === "clear-alert") run("DELETE FROM midterm_alerts WHERE student_user_id = ? AND offering_id = ?", studentId, offeringId);
         else run(`INSERT INTO midterm_alerts VALUES (?, ?, ?, ?) ON CONFLICT(student_user_id, offering_id)
           DO UPDATE SET reason = excluded.reason, updated_at = excluded.updated_at`, studentId, offeringId, textField(form, "reason"), now);
@@ -343,22 +347,22 @@ export function saveAcademicAction(user: CurrentUser, path: string, form: FormDa
       if (user.role !== "student") throw new Response("Forbidden", { status: 403 });
       const kind = path === "/course/withdraw" ? "withdraw" : path === "/course/general" ? "general" : "military";
       if (intent === "cancel-application") {
-        if (!run("UPDATE student_applications SET status = 'cancelled', reviewed_at = ? WHERE id = ? AND student_user_id = ? AND kind = ? AND status = 'pending'", now, idField(form, "recordId"), user.id, kind).changes) throw new InputError("申請已被處理或無法取消。");
+        if (!run("UPDATE student_applications SET status = 'cancelled', reviewed_at = ? WHERE id = ? AND student_user_id = ? AND kind = ? AND semester = ? AND status = 'pending'", now, idField(form, "recordId"), user.id, kind, activeSemester).changes) throw new InputError("申請已被處理或無法取消。");
       } else if (intent === "apply") {
-        if (kind === "withdraw" && !isWithdrawalOpen(ACTIVE_SEMESTER)) throw new InputError(WITHDRAWAL_CLOSED_MESSAGE);
-        if (kind === "general" && !isGeneralSelectionOpen(ACTIVE_SEMESTER)) throw new InputError(GENERAL_SELECTION_CLOSED_MESSAGE);
+        if (kind === "withdraw" && !isWithdrawalOpen(activeSemester)) throw new InputError(WITHDRAWAL_CLOSED_MESSAGE);
+        if (kind === "general" && !isGeneralSelectionOpen(activeSemester)) throw new InputError(GENERAL_SELECTION_CLOSED_MESSAGE);
         const offeringId = kind === "military" ? null : idField(form, "offeringId");
         if (kind === "withdraw" && offeringId) {
           studentCourse(user, offeringId);
           if (row("SELECT 1 FROM academic_grades WHERE student_user_id = ? AND offering_id = ? AND published = 1", user.id, offeringId)) throw new InputError("已公布成績的課程不可停修。");
         }
         if (kind === "general" && offeringId) {
-          if (!row("SELECT 1 FROM course_offerings WHERE id = ? AND semester = ? AND general_education = 1", offeringId, ACTIVE_SEMESTER)) throw new InputError("這門課未開放通識初選。");
+          if (!row("SELECT 1 FROM course_offerings WHERE id = ? AND semester = ? AND general_education = 1", offeringId, activeSemester)) throw new InputError("這門課未開放通識初選。");
           if (row("SELECT 1 FROM enrollments WHERE student_user_id = ? AND offering_id = ?", user.id, offeringId)) throw new InputError("已選課程無須初選。");
           if (row("SELECT 1 FROM student_applications WHERE student_user_id = ? AND offering_id = ? AND kind = 'withdraw' AND status = 'approved'", user.id, offeringId)) throw new InputError("已停修課程不可重新申請。");
         }
-        if (row("SELECT 1 FROM student_applications WHERE student_user_id = ? AND kind = ? AND IFNULL(offering_id, 0) = ? AND semester = ? AND status = 'pending'", user.id, kind, offeringId || 0, ACTIVE_SEMESTER)) throw new InputError("已有待審申請，請勿重複送出。");
-        run("INSERT INTO student_applications (student_user_id, offering_id, semester, kind, reason, created_at, status) VALUES (?, ?, ?, ?, ?, ?, ?)", user.id, offeringId, ACTIVE_SEMESTER, kind, textField(form, "reason"), now, kind === "withdraw" ? "approved" : "pending");
+        if (row("SELECT 1 FROM student_applications WHERE student_user_id = ? AND kind = ? AND IFNULL(offering_id, 0) = ? AND semester = ? AND status = 'pending'", user.id, kind, offeringId || 0, activeSemester)) throw new InputError("已有待審申請，請勿重複送出。");
+        run("INSERT INTO student_applications (student_user_id, offering_id, semester, kind, reason, created_at, status) VALUES (?, ?, ?, ?, ?, ?, ?)", user.id, offeringId, activeSemester, kind, textField(form, "reason"), now, kind === "withdraw" ? "approved" : "pending");
         if (kind === "withdraw") {
           run("DELETE FROM academic_grades WHERE student_user_id = ? AND offering_id = ? AND published = 0", user.id, offeringId);
           run("DELETE FROM midterm_alerts WHERE student_user_id = ? AND offering_id = ?", user.id, offeringId);
@@ -375,7 +379,7 @@ export function saveAcademicAction(user: CurrentUser, path: string, form: FormDa
       if (application.kind === "military") {
         if (application.department !== identity.department) throw new Response("Forbidden", { status: 403 });
       } else ownCourse(user, application.offeringId!);
-      if (application.status !== "pending" || application.semester !== ACTIVE_SEMESTER) throw new InputError("申請已被處理或非目前學期。");
+      if (application.status !== "pending" || application.semester !== activeSemester) throw new InputError("申請已被處理或非目前學期。");
       const status = choice(form, "decision", ["approved", "rejected"]);
       const reviewNote = textField(form, "reviewNote");
       if (status === "approved" && application.kind === "general") {
@@ -422,11 +426,12 @@ export function saveAcademicAction(user: CurrentUser, path: string, form: FormDa
 }
 
 export function getPortalDashboard(user: CurrentUser) {
+  const activeSemester = getActiveSemester();
   const identity = profile(user);
   const teacher = user.role === "teacher";
-  const courses = rows<AcademicCourse>(`${courseSelect} ${teacher ? "WHERE o.teacher_user_id = ?" : "JOIN enrollments e ON e.offering_id = o.id WHERE e.student_user_id = ?"} AND o.semester = ? ORDER BY c.course_code`, user.id, ACTIVE_SEMESTER);
+  const courses = rows<AcademicCourse>(`${courseSelect} ${teacher ? "WHERE o.teacher_user_id = ?" : "JOIN enrollments e ON e.offering_id = o.id WHERE e.student_user_id = ?"} AND o.semester = ? ORDER BY c.course_code`, user.id, activeSemester);
   const pending = row<{ count: number }>(`SELECT COUNT(*) AS count FROM student_applications a JOIN students s ON s.user_id = a.student_user_id
     LEFT JOIN course_offerings o ON o.id = a.offering_id WHERE a.semester = ? AND a.status = 'pending' AND
-    ${teacher ? "((a.kind = 'general' AND o.teacher_user_id = ?) OR (a.kind = 'military' AND s.department = ?))" : "a.student_user_id = ?"}`, ACTIVE_SEMESTER, user.id, ...(teacher ? [identity.department] : []))?.count || 0;
-  return { ...identity, semester: ACTIVE_SEMESTER, courses, pending };
+    ${teacher ? "((a.kind = 'general' AND o.teacher_user_id = ?) OR (a.kind = 'military' AND s.department = ?))" : "a.student_user_id = ?"}`, activeSemester, user.id, ...(teacher ? [identity.department] : []))?.count || 0;
+  return { ...identity, semester: activeSemester, courses, pending };
 }
