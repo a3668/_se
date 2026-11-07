@@ -246,6 +246,9 @@ node_modules/
 /hw2/data/*.sqlite-*
 /hw2/data/*.db-*
 
+# HW7 project files
+!/hw7/app/lib/
+
 # HW5 E2E output
 /hw5/tests/e2e/artifacts/
 pic/

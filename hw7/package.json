@@ -1,29 +1,38 @@
 {
-  "name": "hw7",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "npm run build && vite preview",
-    "deploy": "npm run build && wrangler deploy",
-    "cf-typegen": "wrangler types"
-  },
-  "dependencies": {
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1"
-  },
-  "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.67.0",
-    "@types/node": "^24.19.2",
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.2",
-    "oxlint": "^1.89.0",
-    "typescript": "~7.0.2",
-    "vite": "^8.3.5",
-    "wrangler": "^4.158.0"
-  }
+	"name": "hw7",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "react-router build",
+		"cf-typegen": "wrangler types && react-router typegen",
+		"check": "tsc && react-router build && wrangler deploy --dry-run",
+		"deploy": "wrangler deploy",
+		"dev": "react-router dev",
+		"preview": "npm run build && vite preview",
+		"typegen": "react-router typegen",
+		"typecheck": "npm run typegen && tsc -b",
+		"db:migrate:local": "wrangler d1 migrations apply hw7-db --local",
+		"db:migrate:remote": "wrangler d1 migrations apply hw7-db --remote"
+	},
+	"dependencies": {
+		"isbot": "5.1.32",
+		"react": "19.2.1",
+		"react-dom": "19.2.1",
+		"react-markdown": "10.1.0",
+		"react-router": "7.9.6",
+		"remark-breaks": "4.0.0"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "1.15.3",
+		"@react-router/dev": "7.9.6",
+		"@tailwindcss/vite": "4.1.17",
+		"@types/node": "24.10.1",
+		"@types/react": "19.2.7",
+		"@types/react-dom": "19.2.3",
+		"tailwindcss": "4.1.17",
+		"typescript": "5.9.3",
+		"vite": "^7.0.0",
+		"vite-tsconfig-paths": "5.1.4",
+		"wrangler": "4.88.0"
+	}
 }
