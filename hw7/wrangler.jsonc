@@ -1,0 +1,18 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "hw7",
+	"main": "./workers/app.ts",
+	"compatibility_date": "2025-11-25",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "hw7_db",
+			"database_name": "hw7-db",
+			"database_id": "d5d15a97-db58-4ec5-8a42-96e1a467064c"
+		}
+	]
+}

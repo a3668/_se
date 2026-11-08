@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+	--font-sans: "Noto Sans TC", ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+	@apply bg-slate-50 text-slate-800 antialiased;
+}
+
+/* 題目 Markdown 內容 */
+.markdown {
+	@apply leading-relaxed;
+}
+.markdown > * + * {
+	@apply mt-3;
+}
+.markdown ol {
+	@apply list-decimal pl-6;
+}
+.markdown ul {
+	@apply list-disc pl-6;
+}
+.markdown code {
+	@apply rounded bg-slate-100 px-1 py-0.5 text-sm;
+}
+.markdown pre {
+	@apply overflow-x-auto rounded-lg bg-slate-900 p-4 text-sm leading-snug text-slate-100;
+}
+.markdown pre code {
+	@apply bg-transparent p-0;
+}
