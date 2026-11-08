@@ -4,14 +4,14 @@ import type {
 	QuestionFilters,
 } from "../types/question";
 
-const QUESTION_COLUMNS = `id, chapter, number, type, content, answer`;
+const QUESTION_COLUMNS = `id, chapter, number, type, content, answer, correct`;
 
 export async function listChapters(db: D1Database) {
 	const result = await db
 		.prepare(
 			`SELECT chapter,
 			        COUNT(*) AS total,
-			        COUNT(answer) AS answered
+			        COUNT(COALESCE(correct, answer)) AS answered
 			 FROM questions
 			 GROUP BY chapter
 			 ORDER BY MIN(id) ASC`,

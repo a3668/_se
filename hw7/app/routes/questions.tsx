@@ -2,6 +2,7 @@ import { Form, Link } from "react-router";
 
 import { Markdown } from "../components/markdown";
 import { TypeBadge } from "../components/type-badge";
+import { parseChoices } from "../lib/parse-choices";
 import { listChapters, listQuestions } from "../lib/questions.server";
 import {
 	isQuestionType,
@@ -103,18 +104,24 @@ export default function Questions({ loaderData }: Route.ComponentProps) {
 								例題 {question.number}
 							</Link>
 							<TypeBadge type={question.type} />
-							{question.answer && (
-								<span className="text-xs text-slate-500">有答案</span>
+							{question.correct ? (
+								<span className="text-xs text-emerald-700">可線上作答</span>
+							) : question.answer && (
+								<span className="text-xs text-slate-500">有參考答案</span>
 							)}
 						</div>
 						<div className="mt-3 text-slate-700">
-							<Markdown>{question.content}</Markdown>
+							<Markdown>
+								{question.type === "choice"
+									? parseChoices(question.content).stem || question.content
+									: question.content}
+							</Markdown>
 						</div>
 						<Link
 							to={`/questions/${question.id}`}
 							className="mt-3 inline-block text-sm font-medium text-sky-700 hover:underline"
 						>
-							查看題目 →
+							{question.correct ? "開始作答 →" : "查看題目 →"}
 						</Link>
 					</li>
 				))}

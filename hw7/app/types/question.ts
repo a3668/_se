@@ -17,6 +17,8 @@ export type Question = {
 	type: QuestionType;
 	content: string;
 	answer: string | null;
+	/** 標準答案:選擇題為大寫字母(如 "ACD"),是非題為 "T" / "F",問答題為 null */
+	correct: string | null;
 };
 
 export type ChapterSummary = {
