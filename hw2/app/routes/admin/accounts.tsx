@@ -1,4 +1,5 @@
-import { Form, Link, redirect } from "react-router";
+import { PageHeading, ActionLink, FilterForm, InputControl, SelectControl, ActionButton, TableContainer, DataTable, TableHead, TableRow, TableCell, TableBody, EmptyState } from "../../components/ui";
+import { Link, redirect } from "react-router";
 import { Pagination } from "../../components/pagination";
 import type { Route } from "./+types/accounts";
 import { requireAdmin } from "../../lib/admin-auth.server";
@@ -21,15 +22,17 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const requestedPage = pageValue !== null && /^[1-9]\d*$/.test(pageValue)
     && Number.isSafeInteger(parsedPage) ? parsedPage : 1;
   const filters = { query, department, grade };
-  const result = listAccountPage(kind, filters, requestedPage);
-  if (pageValue !== null && (String(result.pagination.currentPage) !== pageValue || requestedPage === 1)) {
+  const searched = searchParams.get("search") === "1" || Boolean(query || department || grade);
+  const result = listAccountPage(kind, filters, requestedPage, searched);
+  if (searched && pageValue !== null && (String(result.pagination.currentPage) !== pageValue || requestedPage === 1)) {
     return redirect(getPageHref(accountPath(kind), filters, result.pagination.currentPage));
   }
-  return { kind, ...filters, ...result };
+  return { kind, ...filters, ...result, searched };
 }
 
 function getPageHref(basePath: string, filters: { query: string; department: string; grade: string }, page: number) {
   const params = new URLSearchParams();
+  params.set("search", "1");
   if (filters.query) params.set("q", filters.query);
   if (filters.department) params.set("department", filters.department);
   if (filters.grade) params.set("grade", filters.grade);
@@ -38,74 +41,71 @@ function getPageHref(basePath: string, filters: { query: string; department: str
 }
 
 export default function Accounts({ loaderData }: Route.ComponentProps) {
-  const { kind, query, department, grade, accounts, departments, grades, pagination } = loaderData;
+  const { kind, query, department, grade, accounts, departments, grades, pagination, searched } = loaderData;
   const label = accountLabel(kind);
   const basePath = accountPath(kind);
   return (
-    <main className="admin-main">
-      <div className="admin-page-heading">
-        <div>
-          <p className="admin-eyebrow">Account Management</p>
-          <h1>{label}管理</h1>
-        </div>
-        <Link className="admin-primary-link" to={`${basePath}/new`}>新增{label}</Link>
-      </div>
-      <Form key={JSON.stringify([kind, query, department, grade])} className="admin-search" method="get" action={basePath}>
-        <label htmlFor="account-search">搜尋{kind === "students" ? "學號" : "教師編號"}或姓名</label>
-        <div>
-          <input id="account-search" name="q" defaultValue={query} maxLength={100} />
+    <section className="admin-main">
+      <PageHeading context="帳號管理" title={`${label}管理`}
+        actions={<ActionLink className="admin-primary-link" to={`${basePath}/new`}>新增{label}</ActionLink>} />
+      <FilterForm key={JSON.stringify([kind, query, department, grade])} className="admin-search" method="get" action={basePath}>
+        <InputControl type="hidden" name="search" value="1" />
+        <label htmlFor="account-search">搜尋{kind === "students" ? "學號" : "教師編號"}或姓名
+          <InputControl id="account-search" name="q" defaultValue={query} maxLength={100} placeholder="輸入編號或姓名" />
+        </label>
           <label className="admin-filter" htmlFor="account-department">
             科系
-            <select id="account-department" name="department" defaultValue={department}>
+            <SelectControl id="account-department" name="department" defaultValue={department}>
               <option value="">全部科系</option>
               {department && !departments.includes(department) ? <option value={department}>{department}</option> : null}
               {departments.map((value) => <option key={value} value={value}>{value}</option>)}
-            </select>
+            </SelectControl>
           </label>
           {kind === "students" ? (
             <label className="admin-filter" htmlFor="account-grade">
               年級
-              <select id="account-grade" name="grade" defaultValue={grade}>
+              <SelectControl id="account-grade" name="grade" defaultValue={grade}>
                 <option value="">全部年級</option>
                 {grade && !grades.some((value) => String(value) === grade) ? <option value={grade}>{grade} 年級</option> : null}
                 {grades.map((value) => <option key={value} value={value}>{value} 年級</option>)}
-              </select>
+              </SelectControl>
             </label>
           ) : null}
-          <button type="submit">搜尋</button>
-          {query || department || grade ? <Link to={basePath}>清除</Link> : null}
-        </div>
-      </Form>
+          <ActionButton type="submit">搜尋</ActionButton>
+          {searched ? <Link to={basePath}>清除</Link> : null}
+      </FilterForm>
       {accounts.length ? (
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead><tr>
-              <th scope="col">{kind === "students" ? "學號" : "教師編號"}</th>
-              <th scope="col">姓名</th>
-              <th scope="col">系所</th>
-              {kind === "students" ? <th scope="col">年級</th> : null}
-              <th scope="col">管理</th>
-            </tr></thead>
-            <tbody>
+        <TableContainer className="admin-table-wrap">
+          <DataTable className="admin-table">
+            <TableHead><TableRow>
+              <TableCell component="th" scope="col">{kind === "students" ? "學號" : "教師編號"}</TableCell>
+              <TableCell component="th" scope="col">姓名</TableCell>
+              <TableCell component="th" scope="col">系所</TableCell>
+              {kind === "students" ? <TableCell component="th" scope="col">年級</TableCell> : null}
+              <TableCell component="th" scope="col">管理</TableCell>
+            </TableRow></TableHead>
+            <TableBody>
               {accounts.map((account) => (
-                <tr key={account.user_id}>
-                  <td>{account.username}</td>
-                  <td>{account.name}</td>
-                  <td>{account.department}</td>
-                  {kind === "students" ? <td>{account.grade}</td> : null}
-                  <td><Link to={`${basePath}/${account.user_id}${getPageHref(basePath, { query, department, grade }, pagination.currentPage).slice(basePath.length)}`}>查看</Link></td>
-                </tr>
+                <TableRow key={account.user_id}>
+                  <TableCell>{account.username}</TableCell>
+                  <TableCell>{account.name}</TableCell>
+                  <TableCell>{account.department}</TableCell>
+                  {kind === "students" ? <TableCell>{account.grade}</TableCell> : null}
+                  <TableCell><Link to={`${basePath}/${account.user_id}${getPageHref(basePath, { query, department, grade }, pagination.currentPage).slice(basePath.length)}`}>查看</Link></TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      ) : <p className="admin-empty">{query || department || grade ? "找不到符合條件的資料。" : `目前沒有${label}資料。`}</p>}
+            </TableBody>
+          </DataTable>
+        </TableContainer>
+      ) : <EmptyState className="admin-empty">{searched ? "找不到符合條件的資料。" : `請先查詢${label}。`}</EmptyState>}
+      {searched ? <>
       <p className="admin-help admin-pagination-summary">共 {pagination.totalItems} 筆，第 {pagination.currentPage} / {pagination.totalPages} 頁</p>
       <Pagination
         currentPage={pagination.currentPage}
         totalPages={pagination.totalPages}
         getPageHref={(page) => getPageHref(basePath, { query, department, grade }, page)}
       />
-    </main>
+      </> : null}
+    </section>
   );
 }

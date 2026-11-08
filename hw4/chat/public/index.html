@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Shain Chat</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <aside class="sidebar" aria-label="對話側邊欄">
+      <a class="brand" href="/" aria-label="Shain Chat 首頁"><span class="brand-icon">S</span> Shain Chat</a>
+      <button id="new-chat" class="new-chat" type="button" disabled><span aria-hidden="true">＋</span> 新增對話</button>
+      <h2 class="sidebar-heading">歷史對話</h2>
+      <nav id="conversations" class="conversation-list" aria-label="歷史對話"></nav>
+      <div class="sidebar-footer"><span class="docker-mark" aria-hidden="true">▦</span><div>Docker 聊天系統<small>Nginx · Node.js · PostgreSQL</small></div></div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div><span class="eyebrow">OLLAMA</span><h1 id="chat-title">新對話</h1></div>
+      </header>
+      <section id="messages" class="messages" aria-label="聊天訊息" aria-busy="false">
+        <div id="welcome" class="welcome">
+          <div class="welcome-icon" aria-hidden="true">✦</div>
+          <p class="eyebrow">YOUR SPACE TO THINK</p>
+          <h2>今天想聊些什麼？</h2>
+          <p>從一個問題開始，讓想法慢慢成形。<br>你的對話會自動保存，隨時可以接續。</p>
+          <div class="suggestions" aria-label="提問範例">
+            <button type="button" data-prompt="請用簡單的方式介紹 Docker 容器的用途。" disabled>了解 Docker<span aria-hidden="true">↗</span></button>
+            <button type="button" data-prompt="請說明 Nginx 反向代理如何與 Node.js 合作。" disabled>探索反向代理<span aria-hidden="true">↗</span></button>
+            <button type="button" data-prompt="請解釋 PostgreSQL 和 Docker volume 的關係。" disabled>認識資料保存<span aria-hidden="true">↗</span></button>
+          </div>
+        </div>
+      </section>
+      <div class="composer-area">
+        <p id="status" class="status" role="status" aria-live="polite">正在載入對話…</p>
+        <form id="composer" class="composer">
+          <label class="sr-only" for="message-input">輸入訊息</label>
+          <textarea id="message-input" placeholder="傳送訊息給 Shain Chat…" rows="1" maxlength="16000" disabled></textarea>
+          <div class="composer-actions">
+            <div id="model-picker" class="model-picker">
+              <button id="model-toggle" class="model-toggle" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="model-menu" aria-describedby="model-status" aria-label="選擇聊天模型：載入中" disabled><span id="model-label" class="model-label">載入中</span><span class="model-chevron" aria-hidden="true">▾</span></button>
+              <div id="model-menu" class="model-menu" role="listbox" aria-label="聊天模型" hidden></div>
+            </div>
+            <button id="send" class="send" type="submit" aria-label="送出訊息" disabled>↑</button>
+          </div>
+        </form>
+        <p id="model-status" class="model-status" role="status" aria-live="polite"></p>
+        <p class="composer-note">Enter 送出 · Shift＋Enter 換行 <span>AI 回答可能有誤，重要資訊請自行確認。</span></p>
+      </div>
+    </main>
+    <div id="conversation-menu" class="conversation-menu" role="menu" aria-label="對話選項" hidden>
+      <button type="button" role="menuitem" data-action="rename" tabindex="-1"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5 4 4M4 20l5-1L20 8a2.8 2.8 0 0 0-4-4L5 15Z" /></svg>Rename</button>
+      <button type="button" role="menuitem" data-action="delete" class="danger" tabindex="-1"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7" /></svg>Delete</button>
+    </div>
+    <dialog id="conversation-dialog" class="conversation-dialog" aria-labelledby="conversation-dialog-title" aria-describedby="conversation-dialog-description">
+      <form id="conversation-dialog-form" novalidate>
+        <button id="conversation-dialog-close" class="dialog-close" type="button" aria-label="關閉">×</button>
+        <h2 id="conversation-dialog-title"></h2>
+        <p id="conversation-dialog-description" class="dialog-description"></p>
+        <div id="rename-field" class="rename-field">
+          <label class="sr-only" for="conversation-name">對話名稱</label>
+          <input id="conversation-name" type="text" autocomplete="off" aria-describedby="conversation-dialog-error">
+        </div>
+        <p id="conversation-dialog-error" class="dialog-error" role="alert"></p>
+        <div class="dialog-actions">
+          <button id="conversation-dialog-cancel" class="dialog-cancel" type="button">取消</button>
+          <button id="conversation-dialog-submit" class="dialog-submit" type="submit">儲存</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

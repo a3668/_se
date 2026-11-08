@@ -1,0 +1,639 @@
+{
+  "model": "gpt-oss:120b-cloud",
+  "base_url": "http://localhost:11434",
+  "tests_run": 18,
+  "failures": 0,
+  "errors": 0,
+  "records": [
+    {
+      "scenario": "change_requirements",
+      "repetition": 1,
+      "input": "我們五位，希望靠窗",
+      "expected": {
+        "party_size": 5,
+        "window_preference": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 5,\n  \"window_preference\": true,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 5,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "change_requirements",
+      "repetition": 1,
+      "input": "改成八位，不要靠窗，一定要包含B2桌，可以分桌",
+      "expected": {
+        "party_size": 8,
+        "window_preference": false,
+        "table_name": "B2",
+        "table_required": true,
+        "allow_split": true,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 8,\n  \"window_preference\": false,\n  \"window_required\": false,\n  \"table_name\": \"B2\",\n  \"table_required\": true,\n  \"allow_split\": true,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 8,
+        "window_preference": false,
+        "window_required": false,
+        "table_name": "B2",
+        "table_required": true,
+        "allow_split": true,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "change_requirements",
+      "repetition": 2,
+      "input": "我們五位，希望靠窗",
+      "expected": {
+        "party_size": 5,
+        "window_preference": true
+      },
+      "raw_responses": [
+        "{\"party_size\":5,\"window_preference\":true,\"window_required\":false,\"table_name\":null,\"table_required\":false,\"allow_split\":null,\"other_requirements\":[],\"question\":\"\",\"reply\":\"\"}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 5,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "change_requirements",
+      "repetition": 2,
+      "input": "改成八位，不要靠窗，一定要包含B2桌，可以分桌",
+      "expected": {
+        "party_size": 8,
+        "window_preference": false,
+        "table_name": "B2",
+        "table_required": true,
+        "allow_split": true,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 8,\n  \"window_preference\": false,\n  \"window_required\": false,\n  \"table_name\": \"B2\",\n  \"table_required\": true,\n  \"allow_split\": true,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 8,
+        "window_preference": false,
+        "window_required": false,
+        "table_name": "B2",
+        "table_required": true,
+        "allow_split": true,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "change_requirements",
+      "repetition": 3,
+      "input": "我們五位，希望靠窗",
+      "expected": {
+        "party_size": 5,
+        "window_preference": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 5,\n  \"window_preference\": true,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 5,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "change_requirements",
+      "repetition": 3,
+      "input": "改成八位，不要靠窗，一定要包含B2桌，可以分桌",
+      "expected": {
+        "party_size": 8,
+        "window_preference": false,
+        "table_name": "B2",
+        "table_required": true,
+        "allow_split": true,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\"party_size\": 8, \"window_preference\": false, \"window_required\": false, \"table_name\": \"B2\", \"table_required\": true, \"allow_split\": true, \"other_requirements\": [], \"question\": \"\", \"reply\": \"\"}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 8,
+        "window_preference": false,
+        "window_required": false,
+        "table_name": "B2",
+        "table_required": true,
+        "allow_split": true,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "clarification",
+      "repetition": 1,
+      "input": "希望靠窗",
+      "expected": {
+        "party_size": null,
+        "window_preference": true,
+        "ready": false
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": null,\n  \"window_preference\": true,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"請問您有幾位？\",\n  \"reply\": \"請問您有幾位？\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": null,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": "請問您有幾位？"
+      },
+      "passed": true
+    },
+    {
+      "scenario": "clarification",
+      "repetition": 1,
+      "input": "我們四位",
+      "expected": {
+        "party_size": 4,
+        "window_preference": true,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 4,\n  \"window_preference\": true,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 4,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "clarification",
+      "repetition": 2,
+      "input": "希望靠窗",
+      "expected": {
+        "party_size": null,
+        "window_preference": true,
+        "ready": false
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": null,\n  \"window_preference\": true,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": null,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": "請問一共有幾位用餐？"
+      },
+      "passed": true
+    },
+    {
+      "scenario": "clarification",
+      "repetition": 2,
+      "input": "我們四位",
+      "expected": {
+        "party_size": 4,
+        "window_preference": true,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\"party_size\":4,\"window_preference\":true,\"window_required\":false,\"table_name\":null,\"table_required\":false,\"allow_split\":null,\"other_requirements\":[],\"question\":\"\",\"reply\":\"\"}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 4,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "clarification",
+      "repetition": 3,
+      "input": "希望靠窗",
+      "expected": {
+        "party_size": null,
+        "window_preference": true,
+        "ready": false
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": null,\n  \"window_preference\": true,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"請問幾位？\",\n  \"reply\": \"請問幾位？\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": null,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": "請問幾位？"
+      },
+      "passed": true
+    },
+    {
+      "scenario": "clarification",
+      "repetition": 3,
+      "input": "我們四位",
+      "expected": {
+        "party_size": 4,
+        "window_preference": true,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 4,\n  \"window_preference\": true,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 4,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "multi_table",
+      "repetition": 1,
+      "input": "我們八位",
+      "expected": {
+        "party_size": 8,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 8,\n  \"window_preference\": null,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 8,
+        "window_preference": null,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "multi_table",
+      "repetition": 2,
+      "input": "我們八位",
+      "expected": {
+        "party_size": 8,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 8,\n  \"window_preference\": null,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 8,
+        "window_preference": null,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "multi_table",
+      "repetition": 3,
+      "input": "我們八位",
+      "expected": {
+        "party_size": 8,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 8,\n  \"window_preference\": null,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 8,
+        "window_preference": null,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "no_split",
+      "repetition": 1,
+      "input": "我們八位，不要分桌",
+      "expected": {
+        "party_size": 8,
+        "allow_split": false,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 8,\n  \"window_preference\": null,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": false,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 8,
+        "window_preference": null,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": false,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "no_split",
+      "repetition": 2,
+      "input": "我們八位，不要分桌",
+      "expected": {
+        "party_size": 8,
+        "allow_split": false,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 8,\n  \"window_preference\": null,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": false,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 8,
+        "window_preference": null,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": false,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "no_split",
+      "repetition": 3,
+      "input": "我們八位，不要分桌",
+      "expected": {
+        "party_size": 8,
+        "allow_split": false,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 8,\n  \"window_preference\": null,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": false,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 8,
+        "window_preference": null,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": false,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "ordinary",
+      "repetition": 1,
+      "input": "我們五位",
+      "expected": {
+        "party_size": 5,
+        "window_preference": null,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 5,\n  \"window_preference\": null,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 5,
+        "window_preference": null,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "ordinary",
+      "repetition": 2,
+      "input": "我們五位",
+      "expected": {
+        "party_size": 5,
+        "window_preference": null,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 5,\n  \"window_preference\": null,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 5,
+        "window_preference": null,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "ordinary",
+      "repetition": 3,
+      "input": "我們五位",
+      "expected": {
+        "party_size": 5,
+        "window_preference": null,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 5,\n  \"window_preference\": null,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 5,
+        "window_preference": null,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "window",
+      "repetition": 1,
+      "input": "我們四位，希望靠窗",
+      "expected": {
+        "party_size": 4,
+        "window_preference": true,
+        "window_required": false,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 4,\n  \"window_preference\": true,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 4,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "window",
+      "repetition": 2,
+      "input": "我們四位，希望靠窗",
+      "expected": {
+        "party_size": 4,
+        "window_preference": true,
+        "window_required": false,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 4,\n  \"window_preference\": true,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 4,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    },
+    {
+      "scenario": "window",
+      "repetition": 3,
+      "input": "我們四位，希望靠窗",
+      "expected": {
+        "party_size": 4,
+        "window_preference": true,
+        "window_required": false,
+        "ready": true
+      },
+      "raw_responses": [
+        "{\n  \"party_size\": 4,\n  \"window_preference\": true,\n  \"window_required\": false,\n  \"table_name\": null,\n  \"table_required\": false,\n  \"allow_split\": null,\n  \"other_requirements\": [],\n  \"question\": \"\",\n  \"reply\": \"\"\n}"
+      ],
+      "model": "gpt-oss:120b-cloud",
+      "error": "",
+      "actual": {
+        "party_size": 4,
+        "window_preference": true,
+        "window_required": false,
+        "table_name": null,
+        "table_required": false,
+        "allow_split": null,
+        "other_requirements": [],
+        "question": ""
+      },
+      "passed": true
+    }
+  ]
+}

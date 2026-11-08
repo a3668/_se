@@ -1,7 +1,10 @@
-import { Form, Link } from "react-router";
+import { PageHeading, FilterForm, InputControl, SelectControl, ActionButton, TableContainer, DataTable, TableHead, TableRow, TableCell, TableBody, EmptyState } from "../../components/ui";
+import { Link } from "react-router";
 import type { Route } from "./+types/course-catalog";
 import { requireRole } from "../../lib/auth.server";
 import { getDatabase } from "../../lib/db.server";
+import { getSemesterFilter, getStudentOfferingDepartments, getStudentOfferingGrades } from "../../lib/enrollments.server";
+import { Pagination } from "../../components/pagination";
 
 type CourseRow = {
   offering_id: number;
@@ -22,33 +25,21 @@ type CourseRow = {
 const weekdays = ["", "一", "二", "三", "四", "五", "六", "日"];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const user = await requireRole(request, "student", "teacher");
+  await requireRole(request, "student", "teacher");
   const db = getDatabase();
-  const profileTable = user.role === "student" ? "students" : "teachers";
-  const profile = db.prepare(`SELECT department FROM ${profileTable} WHERE user_id = ?`)
-    .get(user.id) as { department: string } | undefined;
-  const semesters = db.prepare("SELECT DISTINCT semester FROM course_offerings ORDER BY semester")
-    .all() as { semester: string }[];
-  const departments = db.prepare(
-    `SELECT DISTINCT courses.department AS department
-     FROM courses JOIN course_offerings ON course_offerings.course_id = courses.id
-     ORDER BY courses.department`,
-  ).all() as { department: string }[];
-
-  const url = new URL(request.url);
-  const semesterOptions = semesters.map((row) => row.semester);
-  const departmentOptions = departments.map((row) => row.department);
-  const requestedSemester = url.searchParams.get("semester");
-  const requestedDepartment = url.searchParams.get("department");
-  const semester = requestedSemester ?? (semesterOptions.includes("115-1") ? "115-1" : semesterOptions[0] ?? "");
-  const department = requestedDepartment ?? (
-    profile && departmentOptions.includes(profile.department) ? profile.department : departmentOptions[0] ?? ""
-  );
-  if ((semester && !semesterOptions.includes(semester)) || (department && !departmentOptions.includes(department))) {
+  const { semester, semesters } = getSemesterFilter(request);
+  const departmentOptions = getStudentOfferingDepartments(semester);
+  const gradeOptions = getStudentOfferingGrades(semester);
+  const params = new URL(request.url).searchParams;
+  const department = params.get("department")?.trim().slice(0, 100) ?? "";
+  const grade = params.get("grade")?.trim().slice(0, 100) ?? "";
+  const searched = params.get("search") === "1" || Boolean(department || grade);
+  if ((department && !departmentOptions.includes(department))
+    || (grade && !gradeOptions.some((value) => String(value) === grade))) {
     throw new Response("Bad Request", { status: 400 });
   }
 
-  const rows = db.prepare(
+  const rows = searched ? db.prepare(
     `SELECT course_offerings.id AS offering_id, courses.course_code, courses.name,
             courses.credits, courses.grade, courses.category, course_offerings.section,
             course_offerings.capacity, teachers.name AS teacher_name,
@@ -58,10 +49,12 @@ export async function loader({ request }: Route.LoaderArgs) {
      JOIN courses ON courses.id = course_offerings.course_id
      JOIN teachers ON teachers.user_id = course_offerings.teacher_user_id
      LEFT JOIN course_schedules ON course_schedules.offering_id = course_offerings.id
-     WHERE course_offerings.semester = ? AND courses.department = ?
+     WHERE course_offerings.semester = ?
+       AND (? = '' OR courses.department = ?)
+       AND (? = '' OR courses.grade = ?)
      ORDER BY courses.grade, courses.course_code, course_offerings.section,
               course_schedules.weekday, course_schedules.start_period`,
-  ).all(semester, department) as CourseRow[];
+  ).all(semester, department, department, grade, grade) as CourseRow[] : [];
 
   const courses: Array<Omit<CourseRow, "weekday" | "start_period" | "end_period" | "classroom"> & { schedules: string[] }> = [];
   for (const row of rows) {
@@ -80,7 +73,13 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  return { semester, department, semesters: semesterOptions, departments: departmentOptions, courses };
+  const totalItems = courses.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / 20));
+  const page = Number(params.get("page"));
+  const currentPage = Number.isSafeInteger(page) && page > 0 ? Math.min(page, totalPages) : 1;
+  return { semester, semesters, department, grade, grades: gradeOptions, departments: departmentOptions,
+    courses: courses.slice((currentPage - 1) * 20, currentPage * 20), searched,
+    pagination: { totalItems, totalPages, currentPage } };
 }
 
 export function meta() {
@@ -88,7 +87,14 @@ export function meta() {
 }
 
 export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
-  const { semester, department, semesters, departments, courses } = loaderData;
+  const { semester, semesters, department, grade, grades, departments, courses, searched, pagination } = loaderData;
+  const pageHref = (page: number) => {
+    const params = new URLSearchParams({ search: "1", semester });
+    if (department) params.set("department", department);
+    if (grade) params.set("grade", grade);
+    if (page > 1) params.set("page", String(page));
+    return `/query/class-data?${params}`;
+  };
   return (
     <div className="portal-page course-catalog-page">
       <nav aria-label="麵包屑" className="portal-breadcrumb">
@@ -96,44 +102,46 @@ export default function CourseCatalog({ loaderData }: Route.ComponentProps) {
         <span aria-hidden="true">/</span>
         <span aria-current="page">課程資料查詢</span>
       </nav>
-      <header className="course-catalog-heading">
-        <p className="portal-kicker">Course catalog</p>
-        <h1>課程資料查詢</h1>
-        <p>以下為示範開課資料，非來源學校的正式課表。</p>
-      </header>
-      <Form className="course-catalog-filters" method="get">
-        <label>學期
-          <select name="semester" defaultValue={semester}>
-            {semesters.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-        </label>
-        <label>系所
-          <select name="department" defaultValue={department}>
+      <PageHeading title="課程資料查詢" context={`${semester} · 課程查詢`} description="依學期、科系與年級查詢開課資訊。" />
+      <FilterForm key={JSON.stringify([semester, department, grade])} className="course-catalog-filters" method="get" action="/query/class-data">
+        <InputControl type="hidden" name="search" value="1" />
+        <label>學期<SelectControl name="semester" defaultValue={semester}>{semesters.map((s) => <option key={s}>{s}</option>)}</SelectControl></label>
+        <label>科系
+          <SelectControl name="department" defaultValue={department}>
+            <option value="">全部科系</option>
             {departments.map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
+          </SelectControl>
         </label>
-        <button type="submit">查詢</button>
-      </Form>
+        <label>年級
+          <SelectControl name="grade" defaultValue={grade}>
+            <option value="">全部年級</option>
+            {grades.map((value) => <option key={value} value={value}>{value} 年級</option>)}
+          </SelectControl>
+        </label>
+        <ActionButton type="submit">查詢</ActionButton>
+        {searched ? <Link to="/query/class-data">清除</Link> : null}
+      </FilterForm>
       {courses.length ? (
-        <div className="course-catalog-table-wrap">
-          <table className="course-catalog-table">
-            <thead><tr>
-              <th scope="col">課程</th><th scope="col">年級／類別</th><th scope="col">學分</th>
-              <th scope="col">班別／上限</th><th scope="col">授課教師</th><th scope="col">上課時段</th>
-            </tr></thead>
-            <tbody>{courses.map((course) => (
-              <tr key={course.offering_id}>
-                <td><strong>{course.name}</strong><small>{course.course_code}</small></td>
-                <td>{course.grade} 年級 · {course.category === "required" ? "必修" : "選修"}</td>
-                <td>{course.credits}</td>
-                <td>{course.section} 班 · {course.capacity} 人</td>
-                <td>{course.teacher_name}</td>
-                <td>{course.schedules.length ? course.schedules.map((schedule) => <div key={schedule}>{schedule}</div>) : "時段未定"}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      ) : <p className="course-catalog-empty">此學期沒有符合條件的開課資料。</p>}
+        <TableContainer className="course-catalog-table-wrap">
+          <DataTable className="course-catalog-table">
+            <TableHead><TableRow>
+              <TableCell component="th" scope="col">課程</TableCell><TableCell component="th" scope="col">年級／類別</TableCell><TableCell component="th" scope="col">學分</TableCell>
+              <TableCell component="th" scope="col">班別／上限</TableCell><TableCell component="th" scope="col">授課教師</TableCell><TableCell component="th" scope="col">上課時段</TableCell>
+            </TableRow></TableHead>
+            <TableBody>{courses.map((course) => (
+              <TableRow key={course.offering_id}>
+                <TableCell><strong>{course.name}</strong><small>{course.course_code}</small></TableCell>
+                <TableCell>{course.grade} 年級 · {course.category === "required" ? "必修" : "選修"}</TableCell>
+                <TableCell>{course.credits}</TableCell>
+                <TableCell>{course.section} 班 · {course.capacity} 人</TableCell>
+                <TableCell>{course.teacher_name}</TableCell>
+                <TableCell>{course.schedules.length ? course.schedules.map((schedule) => <div key={schedule}>{schedule}</div>) : "時段未定"}</TableCell>
+              </TableRow>
+            ))}</TableBody>
+          </DataTable>
+        </TableContainer>
+      ) : <EmptyState className="course-catalog-empty">{searched ? "此學期沒有符合條件的開課資料。" : "請先查詢課程。"}</EmptyState>}
+      {searched ? <><p className="admin-pagination-summary">共 {pagination.totalItems} 筆，第 {pagination.currentPage} / {pagination.totalPages} 頁</p><Pagination {...pagination} label="課程查詢分頁" getPageHref={pageHref} /></> : null}
     </div>
   );
 }

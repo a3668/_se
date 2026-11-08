@@ -21,6 +21,7 @@ export function accountLabel(kind: AccountKind) {
 export function accountListSearch(kind: AccountKind, search: string) {
   const source = new URLSearchParams(search);
   const params = new URLSearchParams();
+  if (source.get("search") === "1") params.set("search", "1");
   for (const key of kind === "students" ? ["q", "department", "grade", "page"] : ["q", "department", "page"]) {
     const value = source.get(key);
     if (value) params.set(key, value);

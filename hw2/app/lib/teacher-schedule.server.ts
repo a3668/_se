@@ -1,7 +1,7 @@
 import { getDatabase } from "./db.server";
-import { ACTIVE_SEMESTER } from "./enrollments.server";
+import { getActiveSemester } from "./semester-settings.server";
 
-export function getTeacherSchedule(teacherUserId: number) {
+export function getTeacherSchedule(teacherUserId: number, semester = getActiveSemester()) {
   const lessons = getDatabase().prepare(
     `SELECT o.id AS offeringId, c.course_code AS code, c.name, o.section,
             s.weekday, s.start_period AS startPeriod, s.end_period AS endPeriod,
@@ -11,7 +11,7 @@ export function getTeacherSchedule(teacherUserId: number) {
      LEFT JOIN course_schedules s ON s.offering_id = o.id
      WHERE o.teacher_user_id = ? AND o.semester = ?
      ORDER BY c.course_code, o.section, s.weekday, s.start_period`,
-  ).all(teacherUserId, ACTIVE_SEMESTER) as {
+  ).all(teacherUserId, semester) as {
     offeringId: number;
     code: string;
     name: string;
@@ -21,5 +21,5 @@ export function getTeacherSchedule(teacherUserId: number) {
     endPeriod: number | null;
     classroom: string | null;
   }[];
-  return { semester: ACTIVE_SEMESTER, lessons };
+  return { semester, lessons };
 }

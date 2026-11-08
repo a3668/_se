@@ -1,4 +1,5 @@
 import { data, redirect } from "react-router";
+import { PageHeading } from "../../components/ui";
 import type { Route } from "./+types/account-new";
 import { requireAdmin } from "../../lib/admin-auth.server";
 import { accountLabel, accountPath } from "../../lib/admin-accounts";
@@ -31,10 +32,9 @@ export async function action({ request, params }: Route.ActionArgs) {
 export default function AccountNew({ loaderData, actionData }: Route.ComponentProps) {
   const kind = loaderData.kind;
   return (
-    <main className="admin-main admin-narrow">
-      <p className="admin-eyebrow">Account Management</p>
-      <h1>新增{accountLabel(kind)}</h1>
+    <section className="admin-main admin-narrow">
+      <PageHeading context="帳號管理" title={`新增${accountLabel(kind)}`} />
       <AccountForm kind={kind} creating fields={actionData?.fields ?? emptyFields} error={actionData?.error} />
-    </main>
+    </section>
   );
 }

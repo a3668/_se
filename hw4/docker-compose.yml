@@ -1,0 +1,54 @@
+services:
+  dev-vm:
+    build: .
+    container_name: my-dev-vm
+    restart: always
+    volumes:
+      # 將 Mac 的 shain 資料夾掛載到容器內的 /shain
+      - /Users/Shared/shain:/shain
+      - ./chat:/shain/chat:ro
+    working_dir: /shain
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-shain_chat}
+      PGUSER: ${POSTGRES_USER:-shain}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-shain_local_dev}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-gpt-oss:120b-cloud}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:stable-alpine
+    restart: always
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./chat/public:/usr/share/nginx/html:ro
+      - ./chat/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - dev-vm
+
+  postgres:
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-shain_chat}
+      POSTGRES_USER: ${POSTGRES_USER:-shain}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-shain_local_dev}
+    volumes:
+      - chat-data:/var/lib/postgresql/data
+      - ./chat/db/init.sql:/docker-entrypoint-initdb.d/01-chat.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  chat-data:

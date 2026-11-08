@@ -1,4 +1,7 @@
+import { InputControl, StatusMessage, ActionButton } from "../../components/ui";
+import { AuthLayout } from "../../components/auth-layout";
 import { data, Form, redirect } from "react-router";
+import { useState } from "react";
 import type { Route } from "./+types/login";
 import {
   createAdminSession,
@@ -39,25 +42,24 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function AdminLogin({ actionData }: Route.ComponentProps) {
+  const [busy, setBusy] = useState(false);
   return (
-    <main className="admin-auth-page">
-      <section className="admin-auth-card">
-        <p className="admin-eyebrow">HW2 · Administration</p>
-        <h1>管理員登入</h1>
-        <p>請輸入管理員帳號與密碼。</p>
-        <Form className="admin-auth-form" method="post" reloadDocument>
-          <label>
-            <span>管理員帳號</span>
-            <input autoComplete="username" autoFocus maxLength={30} name="username" required />
-          </label>
-          <label>
-            <span>密碼</span>
-            <input autoComplete="current-password" maxLength={128} name="password" required type="password" />
-          </label>
-          {actionData?.error ? <p className="admin-form-error" role="alert">{actionData.error}</p> : null}
-          <button type="submit">登入後台</button>
-        </Form>
-      </section>
-    </main>
+    <AuthLayout admin>
+          <p className="eyebrow">管理員專區</p>
+          <h1>登入管理後台</h1>
+          <p className="auth-intro">請輸入管理員帳號與密碼。</p>
+          <Form className="auth-form" method="post" reloadDocument onSubmit={() => setBusy(true)}>
+            <label>
+              <span>管理員帳號</span>
+              <InputControl autoComplete="username" autoFocus maxLength={30} name="username" required />
+            </label>
+            <label>
+              <span>密碼</span>
+              <InputControl autoComplete="current-password" maxLength={128} name="password" required type="password" />
+            </label>
+            {actionData?.error ? <StatusMessage className="form-error" role="alert">{actionData.error}</StatusMessage> : null}
+            <ActionButton className="submit-button" type="submit" disabled={busy}>{busy ? "登入中…" : "登入後台"}</ActionButton>
+          </Form>
+    </AuthLayout>
   );
 }
