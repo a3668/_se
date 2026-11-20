@@ -1,0 +1,24 @@
+{
+	"name": "csie-quiz",
+	"version": "1.0.0",
+	"description": "一行指令建立自己的考古題網站(React Router + Cloudflare D1)",
+	"type": "module",
+	"bin": {
+		"csie-quiz": "bin/csie-quiz.js"
+	},
+	"files": [
+		"bin",
+		"templates"
+	],
+	"engines": {
+		"node": ">=20"
+	},
+	"keywords": [
+		"quiz",
+		"react-router",
+		"cloudflare",
+		"d1",
+		"scaffold"
+	],
+	"license": "MIT"
+}

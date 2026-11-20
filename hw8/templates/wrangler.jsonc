@@ -1,0 +1,19 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "{{name}}",
+	"main": "./workers/app.ts",
+	"compatibility_date": "2025-11-25",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			// 程式碼用 context.cloudflare.env.DB 存取這個資料庫
+			"binding": "DB",
+			"database_name": "{{name}}-db"
+			// 上線前執行 npx wrangler d1 create {{name}}-db,把產生的 database_id 加在這裡
+		}
+	]
+}
