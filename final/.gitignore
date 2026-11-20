@@ -1,0 +1,12 @@
+node_modules/
+.DS_Store
+*.tsbuildinfo
+
+# Wrangler
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+
+# React Router
+.react-router/
+/build/

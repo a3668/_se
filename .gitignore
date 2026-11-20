@@ -255,3 +255,6 @@ pic/
 plans/
 # HW8 template files
 !/hw8/templates/app/lib/
+
+# Final project files
+!/final/app/lib/
