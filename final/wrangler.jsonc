@@ -1,0 +1,19 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "final",
+	"main": "./workers/app.ts",
+	"compatibility_date": "2025-11-25",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "final-db",
+			"database_id": "efdc21ab-34a5-4d6e-bef0-d6cff9f3ec53",
+			"migrations_dir": "migrations"
+		}
+	]
+}
